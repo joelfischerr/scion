@@ -19,6 +19,12 @@ package main
 
 import (
 	"sync"
+	"fmt"
+	"strings"
+	"time"
+
+	// "github.com/scionproto/scion/go/border/manager"
+	
 
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/metrics"
@@ -35,6 +41,15 @@ import (
 )
 
 const processBufCnt = 128
+
+var (
+	ticker = 0
+	queue []rpkt.RtrPkt
+
+	fastQueue []rpkt.RtrPkt
+	slowQueue []rpkt.RtrPkt
+
+)
 
 type Router struct {
 	// Id is the SCION element ID, e.g. "br4-ff00:0:2f".
@@ -66,6 +81,15 @@ func NewRouter(id, confDir string) (*Router, error) {
 // Start sets up networking, and starts go routines for handling the main packet
 // processing as well as various other router functions.
 func (r *Router) Start() {
+	fmt.Printf("69: Start router\n")
+	// log.Debug("69: Start router")
+
+
+	queue := make([]rpkt.RtrPkt, 0)
+
+	_ = queue
+
+	log.Debug("69: Start router", r.Id, "")
 	go func() {
 		defer log.LogPanicAndExit()
 		r.PacketError()
@@ -106,6 +130,7 @@ func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 		}
 		for i := 0; i < n; i++ {
 			rp := pkts[i].(*rpkt.RtrPkt)
+			// r.fakeProcessPacket2(rp)
 			r.processPacket(rp)
 			rp.Release()
 			pkts[i] = nil
@@ -113,9 +138,96 @@ func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 	}
 }
 
+func (r *Router) fakeProcessPacket2(rp *rpkt.RtrPkt) {
+
+	// log.Debug("Append to queue, %d", len(queue), nil)
+
+	// dstAddr, _ := rp.DstIA()
+	// log.Debug("Packet Destination", dstAddr.String(), nil)
+
+	if strings.Contains(r.Id, "br2-ff00_0_212-1") {
+		log.Debug("It's me br2-ff00_0_212-1")
+
+		// if strings.Contains(dstAddr.String(), "1-ff00:0:110") {
+			// log.Debug("It's destined for 1-ff00:0:110")
+		// }
+	} else {
+		log.Debug("In fact I am")
+		log.Debug("", r.Id, nil)
+		// r.processPacket(rp)
+	}
+
+	r.processPacket(rp)
+
+}
+
+func (r *Router) fakeProcessPacket(rp *rpkt.RtrPkt) {
+
+	// log.Debug("Append to queue, %d", len(queue), nil)
+
+	dstAddr, _ := rp.DstIA()
+	log.Debug("Packet Destination", dstAddr.String(), nil)
+
+	if strings.Contains(r.Id, "br2-ff00_0_212-1") {
+		log.Debug("It's me br2-ff00_0_212-1")
+
+		if strings.Contains(dstAddr.String(), "1-ff00:0:110") {
+			log.Debug("It's destined for 1-ff00:0:110")
+
+			queue = append(queue, *rp)
+
+			if len(queue) >= 1 {
+				log.Debug("Start dequeue, but nap first")
+				time.Sleep(0 * time.Millisecond)
+				for len(queue) > 0 {
+					log.Debug("Dequeue length %d", len(queue), nil)
+					irp := queue[0]
+					queue = queue[1:]
+					r.processPacket(&irp)
+				}
+			} else {
+				log.Debug("We don't throttle this connection process immediately", len(queue), nil)
+				r.processPacket(rp)
+			}
+		} else {
+			log.Debug("We don't throttle this connection process immediately", len(queue), nil)
+			r.processPacket(rp)
+		}
+
+	} else {
+		log.Debug("In fact I am")
+		log.Debug("", r.Id, nil)
+		r.processPacket(rp)
+	}
+
+}
+
 // processPacket is the heart of the router's packet handling. It delegates
 // everything from parsing the incoming packet, to routing the outgoing packet.
 func (r *Router) processPacket(rp *rpkt.RtrPkt) {
+
+	log.Debug("Processing Packet, My ID is:", r.Id, nil)
+
+	// Next:
+	// Create a queue and release it every 10 seconds or so
+
+	// if strings.Contains(r.Id, "br2-ff00_0_212-1") {
+	// 	log.Debug("It's me br2-ff00_0_212-1")
+
+	// 	// if ticker == 1 {
+	// 	// 	log.Debug("Skip this packet")
+	// 	// 	ticker = 0
+	// 	// 	return
+	// 	// } else {
+	// 	// 	log.Debug("Forward everything is alright")
+	// 	// 	ticker = ticker + 1
+	// 	// }
+
+	// } else {
+	// 	log.Debug("In fact I am")
+	// 	log.Debug("", r.Id, nil)
+	// }
+
 	if assert.On {
 		assert.Must(rp.DirFrom != rcmn.DirUnset, "DirFrom must be set")
 		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
@@ -127,11 +239,14 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 			assert.Must(rp.Ingress.IfID > 0, "Ingress.IfID must be set for DirFrom==DirExternal")
 		}
 	}
+
+	log.Debug("XXX: HandlePacket")
+
 	// Assign a pseudorandom ID to the packet, for correlating log entries.
 	rp.Id = log.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
 	// XXX(kormat): uncomment for debugging:
-	//rp.Debug("processPacket", "raw", rp.Raw)
+	// rp.Debug("processPacket", "raw", rp.Raw)
 	if err := rp.Parse(); err != nil {
 		r.handlePktError(rp, err, "Error parsing packet")
 		return
@@ -148,12 +263,14 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	}
 	// Check if the packet needs to be processed locally, and if so register
 	// hooks for doing so.
+	log.Debug("121: localProcessing Packet")
 	if err := rp.NeedsLocalProcessing(); err != nil {
 		rp.Error("Error checking for local processing", "err", err)
 		return
 	}
 	// Parse the packet payload, if a previous step has registered a relevant
 	// hook for doing so.
+	log.Debug("121: payload Packet")
 	if _, err := rp.Payload(true); err != nil {
 		// Any errors at this point are application-level, and hence not
 		// calling handlePktError, as no SCMP errors will be sent.
@@ -161,12 +278,211 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		return
 	}
 	// Process the packet, if a previous step has registered a relevant hook for doing so.
+	log.Debug("121: process Packet")
 	if err := rp.Process(); err != nil {
 		r.handlePktError(rp, err, "Error processing packet")
 		return
 	}
+
+	log.Debug("Packet Destination", rp.Id, nil)
+	log.Debug("Packet Destination", rp.String(), nil)
+	dstAddr, _ := rp.DstIA()
+	srcAddr, _ := rp.SrcIA()
+	log.Debug("Packet Source", srcAddr.String(), nil)
+	log.Debug("Packet Destination", dstAddr.String(), nil)
+
+	// r.fakeProcessPacket3(rp)
+
+	r.preRoute(rp)
+
+	// var m Manager
+	// m.process()
+	// managerProcess()
+	
+}
+
+func (r *Router) routeStep(rp *rpkt.RtrPkt) {
 	// Forward the packet. Packets destined to self are forwarded to the local dispatcher.
+	log.Debug("121: route Packet")
 	if err := rp.Route(); err != nil {
 		r.handlePktError(rp, err, "Error routing packet")
 	}
+}
+
+func (r *Router) preRoute(rp *rpkt.RtrPkt) {
+
+	log.Debug("preRouteStep")
+	
+	// Put packets destined for 1-ff00:0:110 on the slow queue
+	// Put all other packets from br2 on a faster queue but still delayed
+
+	if strings.Contains(r.Id, "br2-ff00_0_212") {
+		log.Debug("It's me br2-ff00_0_212")
+
+		dstAddr, _ := rp.DstIA()
+		if strings.Contains(dstAddr.String(), "1-ff00:0:110") {
+			log.Debug("It's destined for 1-ff00:0:110")
+			slowQueue = append(slowQueue, *rp)
+
+			if len(slowQueue) >= 5 {
+				log.Debug("Start dequeue, but nap first")
+				time.Sleep(50 * time.Millisecond)
+				for len(slowQueue) > 0 {
+					log.Debug("Dequeue length %d", len(slowQueue), nil)
+					irp := slowQueue[0]
+					slowQueue = slowQueue[1:]
+					// _ = irp
+					log.Debug("Routing delayed packet", irp)
+					r.processPacket2(&irp)
+				}
+			}
+			// r.routeStep(rp)
+		} else {
+			r.routeStep(rp)
+
+			fastQueue = append(fastQueue, *rp)
+
+			if len(fastQueue) >= 5 {
+				log.Debug("Start dequeue, but nap first")
+				time.Sleep(10 * time.Millisecond)
+				for len(fastQueue) > 0 {
+					log.Debug("Dequeue length %d", len(fastQueue), nil)
+					irp := fastQueue[0]
+					fastQueue = fastQueue[1:]
+					// _ = irp
+					log.Debug("Routing delayed packet", irp)
+					r.processPacket2(&irp)
+				}
+			}
+
+		}
+
+	} else {
+		log.Debug("In fact I am")
+		log.Debug("", r.Id, nil)
+		// r.processPacket(rp)
+		r.routeStep(rp)
+	}
+
+
+
+}
+
+
+func (r *Router) fakeProcessPacket3(rp *rpkt.RtrPkt) {
+
+	log.Debug("fakeProcessPacket3")
+
+	dstAddr, _ := rp.DstIA()
+
+	if strings.Contains(r.Id, "br2-ff00_0_212-1") {
+		log.Debug("It's me br2-ff00_0_212-1")
+
+		if strings.Contains(dstAddr.String(), "1-ff00:0:110") {
+			log.Debug("It's destined for 1-ff00:0:110")
+		}
+	} else {
+		log.Debug("In fact I am")
+		log.Debug("", r.Id, nil)
+		// r.processPacket(rp)
+	}
+
+	// r.processPacket(rp)
+
+
+}
+
+// processPacket is the heart of the router's packet handling. It delegates
+// everything from parsing the incoming packet, to routing the outgoing packet.
+func (r *Router) processPacket2(rp *rpkt.RtrPkt) {
+
+	log.Debug("Processing Packet, My ID is:", r.Id, nil)
+
+	// Next:
+	// Create a queue and release it every 10 seconds or so
+
+	// if strings.Contains(r.Id, "br2-ff00_0_212-1") {
+	// 	log.Debug("It's me br2-ff00_0_212-1")
+
+	// 	// if ticker == 1 {
+	// 	// 	log.Debug("Skip this packet")
+	// 	// 	ticker = 0
+	// 	// 	return
+	// 	// } else {
+	// 	// 	log.Debug("Forward everything is alright")
+	// 	// 	ticker = ticker + 1
+	// 	// }
+
+	// } else {
+	// 	log.Debug("In fact I am")
+	// 	log.Debug("", r.Id, nil)
+	// }
+
+	if assert.On {
+		assert.Must(rp.DirFrom != rcmn.DirUnset, "DirFrom must be set")
+		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
+		assert.Must(rp.Ingress.Src != nil, "Ingress.Src must be set")
+		assert.Must(rp.Ctx != nil, "Context must be set")
+		if rp.DirFrom == rcmn.DirLocal {
+			assert.Must(rp.Ingress.IfID == 0, "Ingress.IfID must not be set for DirFrom==DirLocal")
+		} else {
+			assert.Must(rp.Ingress.IfID > 0, "Ingress.IfID must be set for DirFrom==DirExternal")
+		}
+	}
+
+	log.Debug("XXX: HandlePacket")
+
+	// Assign a pseudorandom ID to the packet, for correlating log entries.
+	rp.Id = log.RandId(4)
+	rp.Logger = log.New("rpkt", rp.Id)
+	// XXX(kormat): uncomment for debugging:
+	// rp.Debug("processPacket", "raw", rp.Raw)
+	if err := rp.Parse(); err != nil {
+		r.handlePktError(rp, err, "Error parsing packet")
+		return
+	}
+	// Validation looks for errors in the packet that didn't break basic
+	// parsing.
+	valid, err := rp.Validate()
+	if err != nil {
+		r.handlePktError(rp, err, "Error validating packet")
+		return
+	}
+	if !valid {
+		return
+	}
+	// Check if the packet needs to be processed locally, and if so register
+	// hooks for doing so.
+	log.Debug("121: localProcessing Packet")
+	if err := rp.NeedsLocalProcessing(); err != nil {
+		rp.Error("Error checking for local processing", "err", err)
+		return
+	}
+	// Parse the packet payload, if a previous step has registered a relevant
+	// hook for doing so.
+	log.Debug("121: payload Packet")
+	if _, err := rp.Payload(true); err != nil {
+		// Any errors at this point are application-level, and hence not
+		// calling handlePktError, as no SCMP errors will be sent.
+		rp.Error("Error parsing payload", "err", err)
+		return
+	}
+	// Process the packet, if a previous step has registered a relevant hook for doing so.
+	log.Debug("121: process Packet")
+	if err := rp.Process(); err != nil {
+		r.handlePktError(rp, err, "Error processing packet")
+		return
+	}
+
+	log.Debug("Packet Destination", rp.Id, nil)
+	log.Debug("Packet Destination", rp.String(), nil)
+	dstAddr, _ := rp.DstIA()
+	srcAddr, _ := rp.SrcIA()
+	log.Debug("Packet Source", srcAddr.String(), nil)
+	log.Debug("Packet Destination", dstAddr.String(), nil)
+
+	// r.fakeProcessPacket3(rp)
+
+	r.routeStep(rp)
+	
 }

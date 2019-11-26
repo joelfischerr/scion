@@ -10,6 +10,8 @@ go_library(
         "main.go",
         "revinfo.go",
         "router.go",
+        "manager.go",
+        "queue.go",
         "setup.go",
         "setup-posix.go",
     ],

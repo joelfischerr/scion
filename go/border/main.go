@@ -47,6 +47,7 @@ func init() {
 }
 
 func main() {
+	fmt.Printf("Starting!")
 	os.Exit(realMain())
 }
 
@@ -77,6 +78,7 @@ func realMain() int {
 		profile.Start(cfg.General.ID)
 	}
 	var err error
+	fmt.Printf("Creating a new router")
 	if r, err = NewRouter(cfg.General.ID, cfg.General.ConfigDir); err != nil {
 		log.Crit("Startup failed", "err", err)
 		return 1

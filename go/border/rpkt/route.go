@@ -30,6 +30,11 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/log"
+)
+
+var (
+	ticker = 0
 )
 
 // Route handles routing of packets. Registered hooks are called, allowing them
@@ -40,6 +45,20 @@ import (
 func (rp *RtrPkt) Route() error {
 	// First allow any registered hooks to either route the packet themselves,
 	// or add entries to the Egress slice.
+
+	log.Debug("testLogOutput")
+	log.Debug("Packet %s", rp.dstIA, nil)
+
+	// This just drops every 20. route request
+	// if ticker == 20 {
+	// 	ticker = 0
+	// 	log.Debug("Don't route", rp, "")
+	// 	return nil
+	// } else {
+	// 	log.Debug("Route", rp, "")
+	// 	ticker = ticker + 1
+	// }
+
 	for _, f := range rp.hooks.Route {
 		ret, err := f()
 		switch {
@@ -59,6 +78,7 @@ func (rp *RtrPkt) Route() error {
 	rp.RefInc(len(rp.Egress))
 	// Call all egress functions.
 	for _, epair := range rp.Egress {
+		log.Debug("Append to ringbuffer for packet", rp, nil)
 		epair.S.Ring.Write(ringbuf.EntryList{&EgressRtrPkt{rp, epair.Dst}}, true)
 		inSock := rp.Ingress.Sock
 		if inSock == "" {
