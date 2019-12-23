@@ -103,6 +103,8 @@ Necessary steps in order to run SCION:
    ```
 
    The default topology looks like [this](doc/fig/default_topo.png).
+   
+   This does not only create the default topology but also certificates which are needed if you want to connect to scionlab.
 
 1. Run the infrastructure:
 
