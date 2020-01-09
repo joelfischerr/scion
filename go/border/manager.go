@@ -32,17 +32,17 @@ func (manag *Manager) managerProcess() () {
 
 func (manag *Manager) preRoute() () {
 
-	for i, queue := range manag.queues {
-		_ = i
-		_ = queue
-		if i % queue.priority == 0 {
-			rp = &queue.dequeue()
-		}
+	// for i, queue := range manag.queues {
+	// 	_ = i
+	// 	_ = queue
+	// 	if i % queue.priority == 0 {
+	// 		rp = &queue.dequeue()
+	// 	}
 
 		
-	}
+	// }
 }
 
-func route (rp *rpkt.RtrPkt) () {
+// func route (rp *rpkt.RtrPkt) () {
 
-}
+// }
