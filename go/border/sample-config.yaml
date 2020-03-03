@@ -1,0 +1,34 @@
+# Queues
+Queues :
+    -
+        name: "Test Queue"
+        id: 0
+        CIR: 0 #Previously named min-bandwidth
+        PIR: 70 #Previously named max-bandwidth
+        maxLength: 1024
+        profile:
+            - 
+                fill-level: 20
+                prob: 10
+                action: "notify"
+            - 
+                fill-level: 50
+                prob: 20
+                action: "notify-drop"
+            - 
+                fill-level: 80
+                prob: 50
+                action: "drop"
+# Rules
+Rules :
+    - 
+        name: "Test rule"
+        sourceIA:
+            - "ff00_0_212"
+            - "ff00_0_213"
+        destinationIA: # Matches if source is any of the above and destination is any of the below
+            - "ff00_0_212"
+            - "ff00_0_213"
+        L4Type: "SCMP"
+        queue: 0
+    - 
