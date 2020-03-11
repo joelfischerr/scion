@@ -1,9 +1,11 @@
 package main
 
 import (
+	"math/rand"
 	"sync"
 
 	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type policeAction int
@@ -41,19 +43,28 @@ type qPkt struct {
 	rp      *rpkt.RtrPkt
 }
 
-// Queue is a single queue
 type packetQueue struct {
-	// Id string
+	Name         string          `yaml:"name"`
+	ID           int             `yaml:"id"`
+	MinBandwidth int             `yaml:"CIR"`
+	MaxBandWidth int             `yaml:"PIR"`
+	PoliceRate   int             `yaml:"policeRate"`
+	MaxLength    int             `yaml:"maxLength"`
+	priority     int             `yaml:"priority"`
+	Profile      []actionProfile `yaml:"profile"`
 
 	mutex *sync.Mutex
 
-	queue        []*qPkt
-	length       int
-	maxLength    int
-	priority     int
-	minBandwidth int
-	maxBandwidth int
-	tb           tokenBucket
+	queue  []*qPkt
+	length int
+	tb     tokenBucket
+}
+
+// TODO: Implement this. It currently does nothing
+type actionProfile struct {
+	FillLevel int          `yaml:"fill-level"`
+	Prob      int          `yaml:"prob"`
+	Action    policeAction `yaml:"action"`
 }
 
 func (pq *packetQueue) enqueue(rp *qPkt) {
@@ -69,6 +80,11 @@ func (pq *packetQueue) enqueue(rp *qPkt) {
 func (pq *packetQueue) canDequeue() bool {
 
 	return pq.length > 0
+}
+
+func (pq *packetQueue) getFillLevel() int {
+
+	return pq.length / pq.MaxLength
 }
 
 func (pq *packetQueue) getLength() int {
@@ -103,4 +119,43 @@ func (pq *packetQueue) popMultiple(number int) []*qPkt {
 	pq.length = pq.length - number
 
 	return pkt
+}
+
+func (pq *packetQueue) checkAction() policeAction {
+
+	level := pq.getFillLevel()
+
+	log.Info("Current level is", "level", level)
+	log.Info("Profiles are", "profiles", pq.Profile)
+
+	for j := len(pq.Profile) - 1; j >= 0; j-- {
+		if level >= pq.Profile[j].FillLevel {
+			log.Info("Matched a rule!")
+			if rand.Intn(100) < (pq.Profile[j].Prob) {
+				log.Info("Take Action!")
+				return pq.Profile[j].Action
+			} else {
+				log.Info("Do not take Action")
+			}
+		}
+	}
+
+	return PASS
+}
+
+func returnAction(polAction policeAction, profAction policeAction) policeAction {
+
+	if polAction == DROPNOTIFY || profAction == DROPNOTIFY {
+		return DROPNOTIFY
+	}
+
+	if polAction == DROP || profAction == DROP {
+		return DROP
+	}
+
+	if polAction == NOTIFY || profAction == NOTIFY {
+		return NOTIFY
+	}
+
+	return PASS
 }

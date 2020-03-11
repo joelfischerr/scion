@@ -18,7 +18,9 @@
 package main
 
 import (
-	"strings"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -33,11 +35,14 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
+	"gopkg.in/yaml.v2"
 )
 
 const processBufCnt = 128
 
 const maxNotificationCount = 512
+
+const configFileLocation = "/home/fischjoe/go/src/github.com/joelfischerr/scion/go/border/sample-config.yaml"
 
 var droppedPackets = 0
 
@@ -57,13 +62,23 @@ type Router struct {
 	// can be caused by a SIGHUP reload.
 	setCtxMtx sync.Mutex
 
-	queues              []packetQueue
-	rules               []classRule
+	config              RouterConfig
 	notifications       chan *qPkt
 	flag                chan int
-	schedulerSurplus    int
+	schedulerSurplus    surplus
 	schedulerSurplusMtx sync.Mutex
 	forwarder           func(rp *rpkt.RtrPkt)
+}
+
+type surplus struct {
+	surplus  int
+	payments []int
+}
+
+// RouterConfig is what I am loading from the config file
+type RouterConfig struct {
+	Queues []packetQueue `yaml:"Queues"`
+	Rules  []classRule   `yaml:"Rules"`
 }
 
 // NewRouter returns a new router
@@ -78,30 +93,53 @@ func NewRouter(id, confDir string) (*Router, error) {
 	return r, nil
 }
 
-func (r *Router) initQueueing() {
-	for w := 0; w < 2; w++ {
-		bandwidth := 50 * 1000 * 1000 // 50Mbit
-		priority := 0
-		if strings.Contains(r.Id, "br2-ff00_0_212") {
-			if w == 1 {
-				log.Debug("It's me br2-ff00_0_212-1")
-				bandwidth = 5 * 1000 * 1000 // 5Mbit
-				priority = 1
-			}
-		}
-		bucket := tokenBucket{MaxBandWidth: bandwidth, tokens: bandwidth, lastRefill: time.Now(), mutex: &sync.Mutex{}}
-		que := packetQueue{maxLength: 2, minBandwidth: priority, maxBandwidth: priority, mutex: &sync.Mutex{}, tb: bucket}
-		r.queues = append(r.queues, que)
+func (r *Router) loadConfigFile(path string) error {
+
+	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+
+	log.Info("Current Path is", "path", dir)
+
+	yamlFile, err := ioutil.ReadFile(path)
+	if err != nil {
+		log.Info("yamlFile.Get ", "error", err)
+		return err
+	}
+	err = yaml.Unmarshal(yamlFile, &r.config)
+	if err != nil {
+		log.Error("Unmarshal: ", "error", err)
+		return err
 	}
 
-	rul := classRule{sourceAs: "2-ff00:0:212", destinationAs: "1-ff00:0:110", queueNumber: 1}
+	return nil
+}
 
-	r.rules = append(r.rules, rul)
+func (r *Router) initQueueing() {
 
-	r.flag = make(chan int, len(r.queues))
+	//TODO: Figure out the actual path where the other config files are loaded
+	// r.loadConfigFile("/home/vagrant/go/src/github.com/joelfischerr/scion/go/border/sample-config.yaml")
+	err := r.loadConfigFile(configFileLocation)
 
+	if err != nil {
+		log.Error("Loading config file failed", "error", err)
+		panic("Loading config file failed")
+	}
+
+	// Initialise other data structures
+
+	for i := 0; i < len(r.config.Queues); i++ {
+		r.config.Queues[i].mutex = &sync.Mutex{}
+		r.config.Queues[i].length = 0
+		r.config.Queues[i].tb = tokenBucket{
+			MaxBandWidth: r.config.Queues[i].PoliceRate,
+			tokens:       r.config.Queues[i].PoliceRate,
+			lastRefill:   time.Now(),
+			mutex:        &sync.Mutex{}}
+	}
+
+	log.Info("We have queues: ", "numberOfQueues", len(r.config.Queues))
+
+	r.flag = make(chan int, len(r.config.Queues))
 	r.notifications = make(chan *qPkt, maxNotificationCount)
-
 	r.forwarder = r.forwardPacket
 
 	go func() {
@@ -131,6 +169,9 @@ func (r *Router) ReloadConfig() error {
 	}
 	if err := r.setupCtxFromConfig(config); err != nil {
 		return common.NewBasicError("Unable to set up new context", err)
+	}
+	if err = r.loadConfigFile(configFileLocation); err != nil {
+		return common.NewBasicError("Unable to load QoS config", err)
 	}
 	return nil
 }
@@ -236,8 +277,6 @@ func (r *Router) dropPacket(rp *rpkt.RtrPkt) {
 	droppedPackets = droppedPackets + 1
 	log.Debug("Dropped Packet", "dropped", droppedPackets)
 
-	// TODO: We probably want some metrics here
-
 }
 
 func (r *Router) forwardPacket(rp *rpkt.RtrPkt) {
@@ -247,9 +286,12 @@ func (r *Router) forwardPacket(rp *rpkt.RtrPkt) {
 	// Forward the packet. Packets destined to self are forwarded to the local dispatcher.
 	if err := rp.Route(); err != nil {
 		r.handlePktError(rp, err, "Error routing packet")
-		// TODO: Add metrics again
-		// l.Result = metrics.ErrRoute
-		// metrics.Process.Pkts(l).Inc()
+		l := metrics.ProcessLabels{
+			IntfIn:  metrics.IntfToLabel(rp.Ingress.IfID),
+			IntfOut: metrics.Drop,
+		}
+		l.Result = metrics.ErrRoute
+		metrics.Process.Pkts(l).Inc()
 	}
 }
 
@@ -261,25 +303,34 @@ func (r *Router) queuePacket(rp *rpkt.RtrPkt) {
 	// Put all other packets from br2 on a faster queue but still delayed
 	// At the moment no queue is slow
 
-	queueNo := getQueueNumberFor(rp, &r.rules)
+	queueNo := getQueueNumberFor(rp, &r.config.Rules)
 	qp := qPkt{rp: rp, queueNo: queueNo}
 
-	polAct := r.queues[queueNo].police(&qp, queueNo == 1)
+	log.Info("Queuenumber is ", "queuenumber", queueNo)
+	log.Info("Queue length is ", "len(r.config.Queues)", len(r.config.Queues))
 
-	if polAct == PASS {
-		r.queues[queueNo].enqueue(&qp)
-	} else if polAct == NOTIFY {
-		r.queues[queueNo].enqueue(&qp)
-		// TODO Check with Marc whether he wants all notifications or if it is fine if we drop some, or what should happen if we drop some
+	polAct := r.config.Queues[queueNo].police(&qp, queueNo == 1)
+	profAct := r.config.Queues[queueNo].checkAction()
+
+	act := returnAction(polAct, profAct)
+
+	// if queueNo == 1 {
+	// 	panic("We have received a packet on queue 1 🥳")
+	// }
+
+	if act == PASS {
+		r.config.Queues[queueNo].enqueue(&qp)
+	} else if act == NOTIFY {
+		r.config.Queues[queueNo].enqueue(&qp)
 		qp.sendNotification()
-	} else if polAct == DROPNOTIFY {
-		r.queues[queueNo].enqueue(&qp)
+	} else if act == DROPNOTIFY {
+		r.dropPacket(qp.rp)
 		qp.sendNotification()
-	} else if polAct == DROP {
+	} else if act == DROP {
 		r.dropPacket(qp.rp)
 	} else {
 		// This should never happen
-		r.queues[queueNo].enqueue(&qp)
+		r.config.Queues[queueNo].enqueue(&qp)
 	}
 
 	// According to gobyexample all sends are blocking and this is the standard way to do non-blocking sends (https://gobyexample.com/non-blocking-channel-operations)
