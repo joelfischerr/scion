@@ -51,10 +51,10 @@ Queues :
         maxLength: 1024
         priority: 1
         profile:
-            - 
-                fill-level: 0
-                prob: 25 # drop each packet with a probability of 25
-                action: 2
+            # - 
+            #     fill-level: 0
+            #     prob: 25 # drop each packet with a probability of 25
+            #     action: 0
 # Rules
 Rules :
     - 

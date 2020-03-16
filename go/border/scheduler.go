@@ -1,6 +1,10 @@
 package main
 
-import "github.com/scionproto/scion/go/lib/log"
+import (
+	"fmt"
+
+	"github.com/scionproto/scion/go/lib/log"
+)
 
 // This is a standard round robin dequeue ignoring things like priority
 
@@ -83,6 +87,7 @@ func (r *Router) drrMinMaxDequer() {
 		i := 0
 
 		for i < len(r.config.Queues) {
+			fmt.Println("Should dequeue", (j+i)%(len(r.config.Queues)))
 			r.drrMinMaxDequeue((j+i)%(len(r.config.Queues)), 1)
 			i++
 		}
@@ -92,29 +97,50 @@ func (r *Router) drrMinMaxDequer() {
 func (r *Router) drrMinMaxDequeue(queueNo int, qsum int) {
 
 	length := r.config.Queues[queueNo].getLength()
-	pktToDequeue := min(64*(r.config.Queues[queueNo].MinBandwidth/qsum), 1)
+	pktToDequeue := max(64*(r.config.Queues[queueNo].MinBandwidth/qsum), 1)
 
 	log.Debug("The queue has length", "length", length)
 	log.Debug("Dequeueing packets", "quantum", pktToDequeue)
+
+	fmt.Println("The queue has length", "length", length)
+	fmt.Println("Dequeueing packets", "quantum", pktToDequeue)
 
 	if length > 0 {
 
 		if r.surplusAvailable() {
 			log.Debug("Surplus available", "surplus", r.schedulerSurplus)
+			fmt.Println("Surplus available", "surplus", r.schedulerSurplus)
 			if length > pktToDequeue {
 				pktToDequeue = r.getFromSurplus(queueNo, length)
 				log.Debug("Dequeueing above minimum", "quantum", pktToDequeue)
+				fmt.Println("Dequeueing above minimum", "quantum", pktToDequeue)
 			} else {
 				if pktToDequeue-length > 0 {
 					r.payIntoSurplus(queueNo, pktToDequeue-length)
 					log.Debug("Paying into surplus", "payment", pktToDequeue-length)
+					fmt.Println("Paying into surplus", "payment", pktToDequeue-length)
 				}
 			}
 		}
 
-		qps := r.config.Queues[queueNo].popMultiple(max(length, pktToDequeue))
-		for _, qp := range qps {
-			r.forwarder(qp.rp)
+		// To be able to check the queuelength more granularely when testing
+		// popMultiple is being disabled while testing
+		// TODO: Also use this to switch the forwarder
+		if jftesting {
+			lim := min(length, pktToDequeue)
+			for i := 0; i < lim; i++ {
+				fmt.Println("Forward from queue", queueNo)
+				qp := r.config.Queues[queueNo].pop()
+				r.forwarder(qp.rp)
+			}
+
+		} else {
+			qps := r.config.Queues[queueNo].popMultiple(min(length, pktToDequeue))
+			fmt.Println("Dequeued", min(length, pktToDequeue))
+			for _, qp := range qps {
+				fmt.Println("Forward from queue", queueNo)
+				r.forwarder(qp.rp)
+			}
 		}
 	}
 }

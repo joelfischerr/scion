@@ -60,7 +60,6 @@ type packetQueue struct {
 	tb     tokenBucket
 }
 
-// TODO: Implement this. It currently does nothing
 type actionProfile struct {
 	FillLevel int          `yaml:"fill-level"`
 	Prob      int          `yaml:"prob"`
@@ -84,7 +83,7 @@ func (pq *packetQueue) canDequeue() bool {
 
 func (pq *packetQueue) getFillLevel() int {
 
-	return pq.length / pq.MaxLength
+	return int(float64(pq.length) / float64(pq.MaxLength) * float64(100))
 }
 
 func (pq *packetQueue) getLength() int {
@@ -138,6 +137,10 @@ func (pq *packetQueue) checkAction() policeAction {
 				log.Info("Do not take Action")
 			}
 		}
+	}
+
+	if pq.MaxLength <= pq.getLength() {
+		return DROP
 	}
 
 	return PASS

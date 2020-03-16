@@ -18,6 +18,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -140,10 +141,11 @@ func (r *Router) initQueueing() {
 
 	r.flag = make(chan int, len(r.config.Queues))
 	r.notifications = make(chan *qPkt, maxNotificationCount)
+
 	r.forwarder = r.forwardPacket
 
 	go func() {
-		r.drrDequer()
+		r.drrMinMaxDequer()
 	}()
 }
 
@@ -299,10 +301,6 @@ func (r *Router) queuePacket(rp *rpkt.RtrPkt) {
 
 	log.Debug("preRouteStep")
 
-	// Put packets destined for 1-ff00:0:110 on the slow queue
-	// Put all other packets from br2 on a faster queue but still delayed
-	// At the moment no queue is slow
-
 	queueNo := getQueueNumberFor(rp, &r.config.Rules)
 	qp := qPkt{rp: rp, queueNo: queueNo}
 
@@ -319,6 +317,7 @@ func (r *Router) queuePacket(rp *rpkt.RtrPkt) {
 	// }
 
 	if act == PASS {
+		fmt.Println("attach to queue", queueNo)
 		r.config.Queues[queueNo].enqueue(&qp)
 	} else if act == NOTIFY {
 		r.config.Queues[queueNo].enqueue(&qp)
