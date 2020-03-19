@@ -321,10 +321,6 @@ func (r *Router) queuePacket(rp *rpkt.RtrPkt) {
 	log.Debug("preRouteStep")
 	log.Debug("We have rules: ", "len(Rules)", len(r.config.Rules))
 
-	// Put packets destined for 1-ff00:0:110 on the slow queue
-	// Put all other packets from br2 on a faster queue but still delayed
-	// At the moment no queue is slow
-
 	queueNo := getQueueNumberWithHashFor(r, rp)
 	qp := qPkt{rp: rp, queueNo: queueNo}
 
@@ -335,10 +331,6 @@ func (r *Router) queuePacket(rp *rpkt.RtrPkt) {
 	profAct := r.config.Queues[queueNo].checkAction()
 
 	act := returnAction(polAct, profAct)
-
-	// if queueNo == 1 {
-	// 	panic("We have received a packet on queue 1 🥳")
-	// }
 
 	if act == PASS {
 		r.config.Queues[queueNo].enqueue(&qp)
