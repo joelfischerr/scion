@@ -158,9 +158,11 @@ func (r *Router) initQueueing(location string) {
 	r.notifications = make(chan *qPkt, maxNotificationCount)
 	r.forwarder = r.forwardPacket
 
-	go func() {
-		r.drrDequer()
-	}()
+	for i := 0; i < 3; i++ {
+		go func() {
+			r.drrDequer()
+		}()
+	}
 
 	log.Debug("Finish init queueing")
 }
