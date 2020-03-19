@@ -17,6 +17,7 @@ go_library(
         "scheduler.go",
         "bufQueue.go",
         "sliceQueue.go",
+        "channelQueue.go",
         "setup-posix.go",
     ],
     importpath = "github.com/scionproto/scion/go/border",
