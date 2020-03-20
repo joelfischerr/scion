@@ -117,7 +117,7 @@ func checkQueueLength(t *testing.T, r *Router, noPacketsPerQueue []int) {
 	}
 }
 
-func allowDequeuePackets(t *testing.T, r *Router, noPackets int) {
+func allowDequeuePackets(r *Router, noPackets int) {
 
 	// Unblock forwarder from previous packet
 	// Note that initially always one packet needs to be sent before testing is done
@@ -138,7 +138,7 @@ func checkDequeuePackets(t *testing.T, r *Router, precondition []int, queueNo in
 
 	postcondition := precondition
 	postcondition[queueNo] = precondition[queueNo] - noPackets
-	allowDequeuePackets(t, r, noPackets)
+	allowDequeuePackets(r, noPackets)
 	checkQueueLength(t, r, postcondition)
 }
 
@@ -216,11 +216,11 @@ func TestQueueMultPacketsBasic(t *testing.T) {
 
 	checkQueueLength(t, r, []int{50, 0, 50})
 
-	allowDequeuePackets(t, r, 50)
+	allowDequeuePackets(r, 50)
 
 	checkQueueLength(t, r, []int{0, 0, 50})
 
-	allowDequeuePackets(t, r, 50)
+	allowDequeuePackets(r, 50)
 
 	checkQueueLength(t, r, []int{0, 0, 0})
 
@@ -273,7 +273,7 @@ func TestQueueMultPacketsEnqueueTwice(t *testing.T) {
 	fmt.Println("Queuecheck 1")
 	checkQueueLength(t, r, []int{50, 0, 50})
 
-	allowDequeuePackets(t, r, 50)
+	allowDequeuePackets(r, 50)
 
 	fmt.Println("Queuecheck 2")
 	checkQueueLength(t, r, []int{0, 0, 50})
@@ -286,11 +286,11 @@ func TestQueueMultPacketsEnqueueTwice(t *testing.T) {
 	fmt.Println("Queuecheck 2")
 	checkQueueLength(t, r, []int{100, 0, 50})
 
-	allowDequeuePackets(t, r, 50)
+	allowDequeuePackets(r, 50)
 
 	checkQueueLength(t, r, []int{100, 0, 0})
 
-	allowDequeuePackets(t, r, 100)
+	allowDequeuePackets(r, 100)
 
 	checkQueueLength(t, r, []int{0, 0, 0})
 
@@ -301,7 +301,7 @@ func TestQueueMultPacketsEnqueueTwice(t *testing.T) {
 
 	checkQueueLength(t, r, []int{0, 0, 1024})
 
-	allowDequeuePackets(t, r, 1024)
+	allowDequeuePackets(r, 1024)
 
 	checkForwarderForLeftovers(t)
 
@@ -360,6 +360,45 @@ func TestQueueSingleDequeue(t *testing.T) {
 	checkDequeuePackets(t, r, []int{50, 0, 0}, 0, 50)
 
 	checkForwarderForLeftovers(t)
+
+	// t.Errorf("Show Log")
+}
+
+func BenchmarkQueueSingleDequeue(b *testing.B) {
+	r := Router{}
+
+	r.loadConfigFile("sample-config.yaml")
+	r.initQueueing()
+	r.forwarder = r.forwardPacketWithBarrierTest
+
+	noPacketsPerClass := [3]int{1, 1, 1}
+	_ = noPacketsPerClass
+
+	fmt.Println("The Queue is: ", r.config.Queues[0])
+	fmt.Println("The Queue is: ", r.config.Queues[1])
+	fmt.Println("The Queue is: ", r.config.Queues[2])
+	fmt.Println("The Rule is: ", r.config.Rules[0])
+	fmt.Println("The Rule is: ", r.config.Rules[1])
+	fmt.Println("We have this number of queues: ", len(r.config.Queues))
+
+	packetSource1, packetDestination1 := "1-ff00:0:110", "1-ff00:0:111"
+	packetSource2, packetDestination2 := "1-ff00:0:111", "1-ff00:0:112"
+	packetSource3, packetDestination3 := "1-ff00:0:112", "1-ff00:0:110"
+
+	sources := [3]string{packetSource1, packetSource2, packetSource3}
+	dests := [3]string{packetDestination1, packetDestination2, packetDestination3}
+	L4Types := [3]int{1, 1, 1}
+
+	// This packet will block forwarding so that we can check the queue
+	var pkt = rpkt.JFPrepareRtrPacketWithSrings(sources[0], dests[0], L4Types[0])
+	r.queuePacket(pkt)
+	time.Sleep(time.Millisecond * 50)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.queuePacket(pkt)
+		allowDequeuePackets(&r, 1)
+	}
 
 	// t.Errorf("Show Log")
 }
