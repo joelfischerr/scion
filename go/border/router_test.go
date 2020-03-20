@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 var canDequeuePacket = make(chan bool, 1)
@@ -394,11 +396,26 @@ func BenchmarkQueueSingleDequeue(b *testing.B) {
 	r.queuePacket(pkt)
 	time.Sleep(time.Millisecond * 50)
 
+	// log.SetOutput(ioutil.Discard)
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r.queuePacket(pkt)
 		allowDequeuePackets(&r, 1)
 	}
 
-	// t.Errorf("Show Log")
+	// log.SetOutput(os.Stdout)
+}
+
+func TestMain(m *testing.M) {
+	fmt.Println("Wave 👋")
+	// log.SetOutput(ioutil.Discard)
+	os.Exit(m.Run())
+}
+
+func BenchmarkHelloWorld(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		log.Info("Hello Info")
+		log.Debug("Hello Debug")
+	}
 }
