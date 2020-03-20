@@ -44,6 +44,8 @@ const configFileLocation = "/home/fischjoe/go/src/github.com/joelfischerr/scion/
 
 var droppedPackets = 0
 
+var workChannel chan *qPkt
+
 // Router struct
 type Router struct {
 	// Id is the SCION element ID, e.g. "br4-ff00:0:2f".
@@ -60,10 +62,10 @@ type Router struct {
 	// can be caused by a SIGHUP reload.
 	setCtxMtx sync.Mutex
 
-	config              InternalRouterConfig
-	legacyConfig        RouterConfig
-	notifications       chan *qPkt
-	flag                chan int
+	config        InternalRouterConfig
+	legacyConfig  RouterConfig
+	notifications chan *qPkt
+	// flag                chan int
 	schedulerSurplus    surplus
 	schedulerSurplusMtx sync.Mutex
 	forwarder           func(rp *rpkt.RtrPkt)
@@ -154,11 +156,24 @@ func (r *Router) initQueueing(location string) {
 	log.Debug("We have queues: ", "numberOfQueues", len(r.config.Queues))
 	log.Debug("We have rules: ", "numberOfRules", len(r.config.Rules))
 
-	r.flag = make(chan int, len(r.config.Queues))
+	// r.flag = make(chan int, len(r.config.Queues))
 	r.notifications = make(chan *qPkt, maxNotificationCount)
 	r.forwarder = r.forwardPacket
 
-	for i := 0; i < 3; i++ {
+	noWorkers := len(r.config.Queues)
+
+	workChannel = make(chan *qPkt, 128)
+
+	log.Debug("We have work channels: ", "numberOfworkChannel", noWorkers)
+
+	for i := 0; i < noWorkers; i++ {
+
+		go func() {
+			r.enqueueWorker()
+		}()
+	}
+
+	for i := 0; i < 1; i++ {
 		go func() {
 			r.drrDequer()
 		}()
@@ -304,6 +319,8 @@ func (r *Router) forwardPacket(rp *rpkt.RtrPkt) {
 
 	defer rp.Release()
 
+	log.Debug("Forwarding one packet")
+
 	// Forward the packet. Packets destined to self are forwarded to the local dispatcher.
 	if err := rp.Route(); err != nil {
 		r.handlePktError(rp, err, "Error routing packet")
@@ -322,35 +339,51 @@ func (r *Router) queuePacket(rp *rpkt.RtrPkt) {
 	log.Debug("We have rules: ", "len(Rules)", len(r.config.Rules))
 
 	queueNo := getQueueNumberWithHashFor(r, rp)
+
+	// Everything after this could be parallelised
 	qp := qPkt{rp: rp, queueNo: queueNo}
+	log.Debug("Put onto Queue")
+	workChannel <- &qp
 
-	log.Debug("Queuenumber is ", "queuenumber", queueNo)
-	log.Debug("Queue length is ", "len(r.config.Queues)", len(r.config.Queues))
+}
 
-	polAct := r.config.Queues[queueNo].police(&qp, queueNo == 1)
-	profAct := r.config.Queues[queueNo].checkAction()
+func (r *Router) enqueueWorker() {
 
-	act := returnAction(polAct, profAct)
+	log.Debug("Start worker")
 
-	if act == PASS {
-		r.config.Queues[queueNo].enqueue(&qp)
-	} else if act == NOTIFY {
-		r.config.Queues[queueNo].enqueue(&qp)
-		qp.sendNotification()
-	} else if act == DROPNOTIFY {
-		r.dropPacket(qp.rp)
-		qp.sendNotification()
-	} else if act == DROP {
-		r.dropPacket(qp.rp)
-	} else {
-		// This should never happen
-		r.config.Queues[queueNo].enqueue(&qp)
-	}
+	for {
 
-	// According to gobyexample all sends are blocking and this is the standard way to do non-blocking sends (https://gobyexample.com/non-blocking-channel-operations)
-	select {
-	case r.flag <- queueNo:
-	default:
+		qp := <-workChannel
+
+		log.Debug("Received qPkt")
+
+		log.Debug("Queuenumber is ", "queuenumber", qp.queueNo)
+		log.Debug("Queue length is ", "len(r.config.Queues)", len(r.config.Queues))
+
+		polAct := r.config.Queues[qp.queueNo].police(qp, qp.queueNo == 1)
+		profAct := r.config.Queues[qp.queueNo].checkAction()
+
+		act := returnAction(polAct, profAct)
+
+		if act == PASS {
+			r.config.Queues[qp.queueNo].enqueue(qp)
+		} else if act == NOTIFY {
+			r.config.Queues[qp.queueNo].enqueue(qp)
+			qp.sendNotification()
+		} else if act == DROPNOTIFY {
+			r.dropPacket(qp.rp)
+			qp.sendNotification()
+		} else if act == DROP {
+			r.dropPacket(qp.rp)
+		} else {
+			// This should never happen
+			r.config.Queues[qp.queueNo].enqueue(qp)
+		}
+
+		// select {
+		// case r.flag <- qp.queueNo:
+		// default:
+		// }
 	}
 
 }

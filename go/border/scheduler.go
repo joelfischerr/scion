@@ -19,7 +19,8 @@ func (r *Router) dequeue(i int) {
 
 func (r *Router) dequeuer() {
 	for {
-		j := <-r.flag
+		// j := <-r.flag
+		j := 0
 		i := 0
 
 		for i < len(r.config.Queues) {
@@ -41,7 +42,8 @@ func (r *Router) drrDequer() {
 	}
 
 	for {
-		j := <-r.flag
+		// j := <-r.flag
+		j := 0
 		i := 0
 
 		for i < len(r.config.Queues) {
@@ -79,7 +81,8 @@ func (r *Router) drrMinMaxDequer() {
 	}
 
 	for {
-		j := <-r.flag
+		// j := <-r.flag
+		j := 0
 		i := 0
 
 		for i < len(r.config.Queues) {
