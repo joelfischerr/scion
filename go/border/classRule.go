@@ -26,20 +26,8 @@ import (
 // TODO: Matching rules is currently based on string comparisons
 
 // Rule contains a rule for matching packets
-type classRule struct {
-	// This is currently means the ID of the sending border router
-	Name                 string `yaml:"name"`
-	SourceAs             string `yaml:"sourceAs"`
-	SourceMatchMode      int    `yaml:"sourceMatchMode"`
-	NextHopAs            string `yaml:"nextHopAs"`
-	NextHopMatchMode     int    `yaml:"nextHopMatchMode"`
-	DestinationAs        string `yaml:"destinationAs"`
-	DestinationMatchMode int    `yaml:"destinationMatchMode"`
-	L4Type               []int  `yaml:"L4Type"`
-	QueueNumber          int    `yaml:"queueNumber"`
-}
 
-type internalClassRule struct {
+type classRule struct {
 	// This is currently means the ID of the sending border router
 	Name          string
 	SourceAs      matchRule
@@ -71,18 +59,18 @@ const (
 	ANY matchMode = 4
 )
 
-func convClassRuleToInternal(cr classRule) (internalClassRule, error) {
+func convClassRuleToInternal(cr configFileClassRule) (classRule, error) {
 
 	sourceMatch, err := getMatchFromRule(cr, cr.SourceMatchMode, cr.SourceAs)
 	if err != nil {
-		return internalClassRule{}, err
+		return classRule{}, err
 	}
 	destinationMatch, err := getMatchFromRule(cr, cr.DestinationMatchMode, cr.DestinationAs)
 	if err != nil {
-		return internalClassRule{}, err
+		return classRule{}, err
 	}
 
-	rule := internalClassRule{
+	rule := classRule{
 		Name:          cr.Name,
 		SourceAs:      sourceMatch,
 		NextHopAs:     matchRule{},
@@ -93,9 +81,9 @@ func convClassRuleToInternal(cr classRule) (internalClassRule, error) {
 	return rule, nil
 }
 
-func rulesToMap(crs []internalClassRule) (map[addr.IA][]*internalClassRule, map[addr.IA][]*internalClassRule) {
-	sourceRules := make(map[addr.IA][]*internalClassRule)
-	destinationRules := make(map[addr.IA][]*internalClassRule)
+func rulesToMap(crs []classRule) (map[addr.IA][]*classRule, map[addr.IA][]*classRule) {
+	sourceRules := make(map[addr.IA][]*classRule)
+	destinationRules := make(map[addr.IA][]*classRule)
 
 	for _, cr := range crs {
 		if cr.SourceAs.matchMode == RANGE {
@@ -135,7 +123,7 @@ func rulesToMap(crs []internalClassRule) (map[addr.IA][]*internalClassRule, map[
 
 }
 
-func getMatchFromRule(cr classRule, matchModeField int, matchRuleField string) (matchRule, error) {
+func getMatchFromRule(cr configFileClassRule, matchModeField int, matchRuleField string) (matchRule, error) {
 	switch matchMode(matchModeField) {
 	case EXACT, ASONLY, ISDONLY, ANY:
 		IA, err := addr.IAFromString(matchRuleField)
@@ -200,7 +188,7 @@ func getQueueNumberIterativeForInternal(r *Router, rp *rpkt.RtrPkt) int {
 func getQueueNumberIterativeFor(r *Router, rp *rpkt.RtrPkt) int {
 	queueNo := 0
 
-	for _, cr := range r.legacyConfig.Rules {
+	for _, cr := range r.config.Rules {
 		if cr.matchRule(rp) {
 			queueNo = cr.QueueNumber
 		}
@@ -208,7 +196,7 @@ func getQueueNumberIterativeFor(r *Router, rp *rpkt.RtrPkt) int {
 	return queueNo
 }
 
-func (cr *internalClassRule) matchSingleRule(rp *rpkt.RtrPkt, matchRuleField *matchRule, getIA func() (addr.IA, error)) bool {
+func (cr *classRule) matchSingleRule(rp *rpkt.RtrPkt, matchRuleField *matchRule, getIA func() (addr.IA, error)) bool {
 
 	switch matchRuleField.matchMode {
 	case EXACT, ASONLY, ISDONLY, ANY:
@@ -229,7 +217,7 @@ func (cr *internalClassRule) matchSingleRule(rp *rpkt.RtrPkt, matchRuleField *ma
 	return false
 }
 
-func (cr *internalClassRule) matchInternalRule(rp *rpkt.RtrPkt) bool {
+func (cr *classRule) matchInternalRule(rp *rpkt.RtrPkt) bool {
 
 	sourceMatches := cr.matchSingleRule(rp, &cr.SourceAs, rp.SrcIA)
 	destinationMatches := cr.matchSingleRule(rp, &cr.DestinationAs, rp.DstIA)
@@ -246,14 +234,14 @@ func (cr *classRule) matchRule(rp *rpkt.RtrPkt) bool {
 	srcAddr, _ := rp.SrcIA()
 	// log.Debug("Source Address is " + srcAddr.String())
 	// log.Debug("Comparing " + srcAddr.String() + " and " + cr.SourceAs)
-	if !strings.Contains(srcAddr.String(), cr.SourceAs) {
+	if !strings.Contains(srcAddr.String(), cr.SourceAs.IA.String()) {
 		match = false
 	}
 
 	dstAddr, _ := rp.DstIA()
 	// log.Debug("Destination Address is " + dstAddr.String())
 	// log.Debug("Comparing " + dstAddr.String() + " and " + cr.DestinationAs)
-	if !strings.Contains(dstAddr.String(), cr.DestinationAs) {
+	if !strings.Contains(dstAddr.String(), cr.DestinationAs.IA.String()) {
 		match = false
 	}
 
