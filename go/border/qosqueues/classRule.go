@@ -47,7 +47,7 @@ type InternalClassRule struct {
 	SourceAs      matchRule
 	NextHopAs     matchRule
 	DestinationAs matchRule
-	L4Type        []common.L4Type
+	L4Type        []common.L4ProtocolType
 	QueueNumber   int
 }
 
