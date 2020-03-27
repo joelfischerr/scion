@@ -39,7 +39,7 @@ func JFPrepareRtrPacketSample(t *testing.T) *RtrPkt {
 			IFs: map[common.IFIDType]*topology.IFInfo{5: nil},
 		},
 	}
-	r.Ingress = AddrIFPair{IfID: 5}
+	r.Ingress = addrIFPair{IfID: 5}
 	// return r
 
 	// r.parseBasic()
@@ -50,7 +50,7 @@ func JFPrepareRtrPacketSample(t *testing.T) *RtrPkt {
 	r.Raw = nil // We don't need contents for this anyways
 	r.TimeIn = time.Now()
 	r.DirFrom = -1 // I don't know what this is
-	r.Ingress = AddrIFPair{Dst: sampleUDPAddr,
+	r.Ingress = addrIFPair{Dst: sampleUDPAddr,
 		Src:  sampleUDPAddr,
 		IfID: 0, IfLabel: "TODO set all of this stuff correctly"}
 	r.Egress = []EgressPair{EgressPair{S: nil, Dst: sampleUDPAddr}}
@@ -90,7 +90,7 @@ func JFPrepareRtrPacketWith(sourceIA addr.IA, destinationIA addr.IA, L4Type comm
 			IFs: map[common.IFIDType]*topology.IFInfo{5: nil},
 		},
 	}
-	r.Ingress = AddrIFPair{IfID: 5}
+	r.Ingress = addrIFPair{IfID: 5}
 
 	sampleUDPAddr := &net.UDPAddr{IP: net.IPv4(127, 1, 1, 111), Port: -1, Zone: "IPv6 scoped addressing zone"}
 
@@ -98,7 +98,7 @@ func JFPrepareRtrPacketWith(sourceIA addr.IA, destinationIA addr.IA, L4Type comm
 	r.Raw = nil // We don't need contents for this anyways
 	r.TimeIn = time.Now()
 	r.DirFrom = -1 // I don't know what this is
-	r.Ingress = AddrIFPair{Dst: sampleUDPAddr,
+	r.Ingress = addrIFPair{Dst: sampleUDPAddr,
 		Src:  sampleUDPAddr,
 		IfID: 0, IfLabel: "TODO set all of this stuff correctly"}
 	r.Egress = []EgressPair{EgressPair{S: nil, Dst: sampleUDPAddr}}
