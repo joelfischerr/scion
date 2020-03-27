@@ -19,8 +19,6 @@ package main
 
 import (
 	"io/ioutil"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -30,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/border/rctrl"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -62,7 +61,8 @@ type Router struct {
 	// can be caused by a SIGHUP reload.
 	setCtxMtx sync.Mutex
 
-	config              RouterConfig
+	config              InternalRouterConfig
+	legacyConfig        RouterConfig
 	notifications       chan *qPkt
 	flag                chan int
 	schedulerSurplus    surplus
@@ -81,6 +81,14 @@ type RouterConfig struct {
 	Rules  []classRule   `yaml:"Rules"`
 }
 
+// InternalRouterConfig is what I am loading from the config file
+type InternalRouterConfig struct {
+	Queues           []packetQueue
+	Rules            []internalClassRule
+	SourceRules      map[addr.IA][]*internalClassRule
+	DestinationRules map[addr.IA][]*internalClassRule
+}
+
 // NewRouter returns a new router
 func NewRouter(id, confDir string) (*Router, error) {
 	r := &Router{Id: id, confDir: confDir}
@@ -88,36 +96,48 @@ func NewRouter(id, confDir string) (*Router, error) {
 		return nil, err
 	}
 
-	r.initQueueing()
+	r.initQueueing(configFileLocation)
 
 	return r, nil
 }
 
 func (r *Router) loadConfigFile(path string) error {
 
-	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	var internalRules []internalClassRule
 
-	log.Info("Current Path is", "path", dir)
+	var rc RouterConfig
+
+	// dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	// log.Debug("Current Path is", "path", dir)
 
 	yamlFile, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Info("yamlFile.Get ", "error", err)
 		return err
 	}
-	err = yaml.Unmarshal(yamlFile, &r.config)
+	err = yaml.Unmarshal(yamlFile, &rc)
 	if err != nil {
-		log.Error("Unmarshal: ", "error", err)
 		return err
 	}
+
+	for _, rule := range rc.Rules {
+		intRule, err := convClassRuleToInternal(rule)
+		if err != nil {
+			log.Error("Error reading config file", "error", err)
+		}
+		internalRules = append(internalRules, intRule)
+	}
+
+	r.legacyConfig = rc
+	r.config = InternalRouterConfig{Queues: rc.Queues, Rules: internalRules}
 
 	return nil
 }
 
-func (r *Router) initQueueing() {
+func (r *Router) initQueueing(location string) {
 
 	//TODO: Figure out the actual path where the other config files are loaded
 	// r.loadConfigFile("/home/vagrant/go/src/github.com/joelfischerr/scion/go/border/sample-config.yaml")
-	err := r.loadConfigFile(configFileLocation)
+	err := r.loadConfigFile(location)
 
 	if err != nil {
 		log.Error("Loading config file failed", "error", err)
@@ -136,7 +156,8 @@ func (r *Router) initQueueing() {
 			mutex:        &sync.Mutex{}}
 	}
 
-	log.Info("We have queues: ", "numberOfQueues", len(r.config.Queues))
+	// log.Debug("We have queues: ", "numberOfQueues", len(r.config.Queues))
+	// log.Debug("We have rules: ", "numberOfRules", len(r.config.Rules))
 
 	r.flag = make(chan int, len(r.config.Queues))
 	r.notifications = make(chan *qPkt, maxNotificationCount)
@@ -298,16 +319,17 @@ func (r *Router) forwardPacket(rp *rpkt.RtrPkt) {
 func (r *Router) queuePacket(rp *rpkt.RtrPkt) {
 
 	log.Debug("preRouteStep")
+	log.Debug("We have rules: ", "len(Rules)", len(r.config.Rules))
 
 	// Put packets destined for 1-ff00:0:110 on the slow queue
 	// Put all other packets from br2 on a faster queue but still delayed
 	// At the moment no queue is slow
 
-	queueNo := getQueueNumberFor(rp, &r.config.Rules)
+	queueNo := getQueueNumberWithHashFor(r, rp)
 	qp := qPkt{rp: rp, queueNo: queueNo}
 
-	log.Info("Queuenumber is ", "queuenumber", queueNo)
-	log.Info("Queue length is ", "len(r.config.Queues)", len(r.config.Queues))
+	log.Debug("Queuenumber is ", "queuenumber", queueNo)
+	log.Debug("Queue length is ", "len(r.config.Queues)", len(r.config.Queues))
 
 	polAct := r.config.Queues[queueNo].police(&qp, queueNo == 1)
 	profAct := r.config.Queues[queueNo].checkAction()
