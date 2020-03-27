@@ -16,7 +16,6 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -128,7 +127,7 @@ func TestBasicRoute(t *testing.T) {
 		if returnedPacket != rp {
 			t.Errorf("Returned wrong packet!")
 		} else {
-			fmt.Println("We got the packet back 🥳👯‍♂️👯‍♀️")
+			t.Log("We got the packet back 🥳👯‍♂️👯‍♀️")
 		}
 	default:
 		t.Errorf("Returned no packet!")
@@ -167,7 +166,7 @@ func TestHundredPacketQueue(t *testing.T) {
 			if returnedPacket != ps[i] {
 				t.Errorf("Returned wrong packet!")
 			} else {
-				fmt.Println("We got the packet back 🥳👯‍♂️👯‍♀️")
+				t.Log("We got the packet back 🥳👯‍♂️👯‍♀️")
 			}
 		default:
 			t.Errorf("Returned no packet!")
