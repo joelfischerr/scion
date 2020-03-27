@@ -1,5 +1,5 @@
 // Copyright 2020 ETH Zurich
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package qosqueues
 
 import (
 	"sync"
@@ -60,50 +60,4 @@ func (tb *tokenBucket) refill(shouldLog bool) {
 		}
 	}
 
-}
-
-func (pq *packetQueue) police(qp *qPkt, shouldLog bool) policeAction {
-	pq.tb.mutex.Lock()
-	defer pq.tb.mutex.Unlock()
-
-	packetSize := (qp.rp.Bytes().Len()) // In byte
-
-	tokenForPacket := packetSize * 8 // In bit
-
-	if shouldLog {
-		log.Debug("Overall available bandwidth per second", "MaxBandWidth", pq.tb.MaxBandWidth)
-		log.Debug("Spent token in last period", "#tokens", pq.tb.tokenSpent)
-		log.Debug("Available bandwidth before refill", "bandwidth", pq.tb.tokens)
-	}
-
-	pq.tb.refill(shouldLog)
-
-	if shouldLog {
-		log.Debug("Available bandwidth after refill", "bandwidth", pq.tb.tokens)
-		log.Debug("Tokens necessary for packet", "tokens", tokenForPacket)
-		log.Debug("Tokens necessary for packet", "bytes", qp.rp.Bytes().Len())
-	}
-
-	if pq.tb.tokens-tokenForPacket > 0 {
-		pq.tb.tokens = pq.tb.tokens - tokenForPacket
-		pq.tb.tokenSpent += tokenForPacket
-		qp.act.action = PASS
-		qp.act.reason = None
-	} else {
-		qp.act.action = DROP
-		qp.act.reason = BandWidthExceeded
-	}
-
-	if shouldLog {
-		log.Debug("Available bandwidth after update", "bandwidth", pq.tb.tokens)
-	}
-
-	return qp.act.action
-}
-
-func (qp *qPkt) sendNotification() {
-	select {
-	case r.notifications <- qp:
-	default:
-	}
 }
