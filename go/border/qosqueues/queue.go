@@ -44,6 +44,7 @@ const (
 
 // Action is
 type Action struct {
+	rule   *InternalClassRule
 	reason Violation
 	action PoliceAction
 }
@@ -54,21 +55,35 @@ type QPkt struct {
 	Rp      *rpkt.RtrPkt
 }
 
-type ActionProfile struct {
-	FillLevel int
-	Prob      int
-	Action    PoliceAction
+type NPkt struct {
+	Rule *InternalClassRule
+	Qpkt *QPkt
+}
+
+type actionProfile struct {
+	FillLevel int          `yaml:"fill-level"`
+	Prob      int          `yaml:"prob"`
+	Action    PoliceAction `yaml:"action"`
+}
+
+type congestionWarningApproach int
+type congestionWarningInformationContent int
+
+type CongestionWarning struct {
+	approach    congestionWarningApproach           `yaml:"approach"`
+	infoContent congestionWarningInformationContent `yaml:"informationContent"`
 }
 
 type PacketQueue struct {
-	Name         string
-	ID           int
-	MinBandwidth int
-	MaxBandWidth int
-	PoliceRate   int
-	MaxLength    int
-	Priority     int
-	Profile      []ActionProfile
+	Name         string            `yaml:"name"`
+	ID           int               `yaml:"id"`
+	MinBandwidth int               `yaml:"CIR"`
+	MaxBandWidth int               `yaml:"PIR"`
+	PoliceRate   int               `yaml:"policeRate"`
+	MaxLength    int               `yaml:"maxLength"`
+	priority     int               `yaml:"priority"`
+	congWarning  CongestionWarning `yaml:"congestionWarning"`
+	Profile      []actionProfile   `yaml:"profile"`
 }
 
 type PacketQueueInterface interface {
@@ -82,7 +97,6 @@ type PacketQueueInterface interface {
 	Police(qp *QPkt, shouldLog bool) PoliceAction
 	GetPriority() int
 	GetMinBandwidth() int
-	GetPacketQueue() PacketQueue
 }
 
 func ReturnAction(polAction PoliceAction, profAction PoliceAction) PoliceAction {

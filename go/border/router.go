@@ -1,5 +1,5 @@
 // Copyright 2020 ETH Zurich
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/border/rctrl"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -64,25 +63,13 @@ type Router struct {
 	// can be caused by a SIGHUP reload.
 	setCtxMtx sync.Mutex
 
-	config              routerConfig
-	notifications       chan *qosqueues.QPkt
-	schedulerSurplus    surplus
+	config              qosqueues.InternalRouterConfig
+	legacyConfig        qosqueues.RouterConfig
+	notifications       chan *qosqueues.NPkt
+	schedulerSurplus    qosqueues.Surplus
 	schedulerSurplusMtx sync.Mutex
 	workerChannels      [](chan *qosqueues.QPkt)
 	forwarder           func(rp *rpkt.RtrPkt)
-}
-
-type surplus struct {
-	surplus  int
-	payments []int
-}
-
-// routerConfig is what I am loading from the config file
-type routerConfig struct {
-	Queues           []qosqueues.PacketQueueInterface
-	Rules            []classRule
-	SourceRules      map[addr.IA][]*classRule
-	DestinationRules map[addr.IA][]*classRule
 }
 
 // NewRouter returns a new router
@@ -111,7 +98,7 @@ func (r *Router) initQueueing(location string) {
 	log.Debug("We have queues: ", "numberOfQueues", len(r.config.Queues))
 	log.Debug("We have rules: ", "numberOfRules", len(r.config.Rules))
 
-	r.notifications = make(chan *qosqueues.QPkt, maxNotificationCount)
+	r.notifications = make(chan *qosqueues.NPkt, maxNotificationCount)
 	r.forwarder = r.forwardPacket
 
 	go r.drrDequer()
@@ -281,7 +268,7 @@ func (r *Router) queuePacket(rp *rpkt.RtrPkt) {
 	log.Debug("preRouteStep")
 	log.Debug("We have rules: ", "len(Rules)", len(r.config.Rules))
 
-	queueNo := getQueueNumberWithHashFor(r, rp)
+	queueNo := qosqueues.GetQueueNumberWithHashFor(&r.config, rp)
 	qp := qosqueues.QPkt{Rp: rp, QueueNo: queueNo}
 
 	r.workerChannels[(queueNo % noWorker)] <- &qp
@@ -325,8 +312,11 @@ func putOnQueue(queueNo int, qp *qosqueues.QPkt) {
 }
 
 func (r *Router) sendNotification(qp *qosqueues.QPkt) {
+
+	np := qosqueues.NPkt{Rule: qosqueues.GetRuleWithHashFor(&r.config, qp.Rp), Qpkt: qp}
+
 	select {
-	case r.notifications <- qp:
+	case r.notifications <- &np:
 	default:
 	}
 }

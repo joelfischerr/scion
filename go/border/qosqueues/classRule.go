@@ -1,5 +1,5 @@
 // Copyright 2020 ETH Zurich
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package qosqueues
 
 import (
 	"strings"
@@ -26,7 +26,6 @@ import (
 // TODO: Matching rules is currently based on string comparisons
 
 // Rule contains a rule for matching packets
-
 type classRule struct {
 	// This is currently means the ID of the sending border router
 	Name                 string `yaml:"name"`
@@ -41,7 +40,7 @@ type classRule struct {
 	QueueNumber          int    `yaml:"queueNumber"`
 }
 
-type internalClassRule struct {
+type InternalClassRule struct {
 	// This is currently means the ID of the sending border router
 	Name          string
 	Priority      int
@@ -74,18 +73,18 @@ const (
 	ANY matchMode = 4
 )
 
-func convClassRuleToInternal(cr configFileClassRule) (classRule, error) {
+func ConvClassRuleToInternal(cr classRule) (InternalClassRule, error) {
 
 	sourceMatch, err := getMatchFromRule(cr, cr.SourceMatchMode, cr.SourceAs)
 	if err != nil {
-		return classRule{}, err
+		return InternalClassRule{}, err
 	}
 	destinationMatch, err := getMatchFromRule(cr, cr.DestinationMatchMode, cr.DestinationAs)
 	if err != nil {
-		return classRule{}, err
+		return InternalClassRule{}, err
 	}
 
-	rule := classRule{
+	rule := InternalClassRule{
 		Name:          cr.Name,
 		Priority:      cr.Priority,
 		SourceAs:      sourceMatch,
@@ -97,9 +96,9 @@ func convClassRuleToInternal(cr configFileClassRule) (classRule, error) {
 	return rule, nil
 }
 
-func rulesToMap(crs []classRule) (map[addr.IA][]*classRule, map[addr.IA][]*classRule) {
-	sourceRules := make(map[addr.IA][]*classRule)
-	destinationRules := make(map[addr.IA][]*classRule)
+func rulesToMap(crs []InternalClassRule) (map[addr.IA][]*InternalClassRule, map[addr.IA][]*InternalClassRule) {
+	sourceRules := make(map[addr.IA][]*InternalClassRule)
+	destinationRules := make(map[addr.IA][]*InternalClassRule)
 
 	for _, cr := range crs {
 		if cr.SourceAs.matchMode == RANGE {
@@ -139,7 +138,7 @@ func rulesToMap(crs []classRule) (map[addr.IA][]*classRule, map[addr.IA][]*class
 
 }
 
-func getMatchFromRule(cr configFileClassRule, matchModeField int, matchRuleField string) (matchRule, error) {
+func getMatchFromRule(cr classRule, matchModeField int, matchRuleField string) (matchRule, error) {
 	switch matchMode(matchModeField) {
 	case EXACT, ASONLY, ISDONLY, ANY:
 		IA, err := addr.IAFromString(matchRuleField)
@@ -170,16 +169,16 @@ func getMatchFromRule(cr configFileClassRule, matchModeField int, matchRuleField
 	return matchRule{}, common.NewBasicError("Invalid matchMode declared", nil, "matchMode", matchModeField)
 }
 
-func getQueueNumberWithHashFor(r *Router, rp *rpkt.RtrPkt) int {
+func GetRuleWithHashFor(config *InternalRouterConfig, rp *rpkt.RtrPkt) *InternalClassRule {
 
 	srcAddr, _ := rp.SrcIA()
 	dstAddr, _ := rp.DstIA()
 
-	queues1 := r.config.SourceRules[srcAddr]
-	queues2 := r.config.DestinationRules[dstAddr]
+	queues1 := config.SourceRules[srcAddr]
+	queues2 := config.DestinationRules[dstAddr]
 
-	matches := make([]internalClassRule, 0)
-	returnRule := internalClassRule{QueueNumber: 0}
+	matches := make([]InternalClassRule, 0)
+	returnRule := InternalClassRule{QueueNumber: 0}
 
 	for _, rul1 := range queues1 {
 		for _, rul2 := range queues2 {
@@ -197,15 +196,20 @@ func getQueueNumberWithHashFor(r *Router, rp *rpkt.RtrPkt) int {
 		}
 	}
 
-	return returnRule.QueueNumber
+	return &returnRule
 }
 
-func getQueueNumberIterativeForInternal(r *Router, rp *rpkt.RtrPkt) int {
+func GetQueueNumberWithHashFor(config *InternalRouterConfig, rp *rpkt.RtrPkt) int {
+
+	return GetRuleWithHashFor(config, rp).QueueNumber
+}
+
+func getQueueNumberIterativeForInternal(config *InternalRouterConfig, rp *rpkt.RtrPkt) int {
 
 	queueNo := 0
-	matches := make([]internalClassRule, 0)
+	matches := make([]InternalClassRule, 0)
 
-	for _, cr := range r.config.Rules {
+	for _, cr := range config.Rules {
 
 		if cr.matchInternalRule(rp) {
 			matches = append(matches, cr)
@@ -223,12 +227,12 @@ func getQueueNumberIterativeForInternal(r *Router, rp *rpkt.RtrPkt) int {
 	return queueNo
 }
 
-func getQueueNumberIterativeFor(r *Router, rp *rpkt.RtrPkt) int {
+func getQueueNumberIterativeFor(legacyConfig *RouterConfig, rp *rpkt.RtrPkt) int {
 	queueNo := 0
 
 	matches := make([]classRule, 0)
 
-	for _, cr := range r.legacyConfig.Rules {
+	for _, cr := range legacyConfig.Rules {
 		if cr.matchRule(rp) {
 			matches = append(matches, cr)
 		}
@@ -245,7 +249,7 @@ func getQueueNumberIterativeFor(r *Router, rp *rpkt.RtrPkt) int {
 	return queueNo
 }
 
-func (cr *classRule) matchSingleRule(rp *rpkt.RtrPkt, matchRuleField *matchRule, getIA func() (addr.IA, error)) bool {
+func (cr *InternalClassRule) matchSingleRule(rp *rpkt.RtrPkt, matchRuleField *matchRule, getIA func() (addr.IA, error)) bool {
 
 	switch matchRuleField.matchMode {
 	case EXACT, ASONLY, ISDONLY, ANY:
@@ -266,7 +270,7 @@ func (cr *classRule) matchSingleRule(rp *rpkt.RtrPkt, matchRuleField *matchRule,
 	return false
 }
 
-func (cr *classRule) matchInternalRule(rp *rpkt.RtrPkt) bool {
+func (cr *InternalClassRule) matchInternalRule(rp *rpkt.RtrPkt) bool {
 
 	sourceMatches := cr.matchSingleRule(rp, &cr.SourceAs, rp.SrcIA)
 	destinationMatches := cr.matchSingleRule(rp, &cr.DestinationAs, rp.DstIA)
@@ -283,14 +287,14 @@ func (cr *classRule) matchRule(rp *rpkt.RtrPkt) bool {
 	srcAddr, _ := rp.SrcIA()
 	// log.Debug("Source Address is " + srcAddr.String())
 	// log.Debug("Comparing " + srcAddr.String() + " and " + cr.SourceAs)
-	if !strings.Contains(srcAddr.String(), cr.SourceAs.IA.String()) {
+	if !strings.Contains(srcAddr.String(), cr.SourceAs) {
 		match = false
 	}
 
 	dstAddr, _ := rp.DstIA()
 	// log.Debug("Destination Address is " + dstAddr.String())
 	// log.Debug("Comparing " + dstAddr.String() + " and " + cr.DestinationAs)
-	if !strings.Contains(dstAddr.String(), cr.DestinationAs.IA.String()) {
+	if !strings.Contains(dstAddr.String(), cr.DestinationAs) {
 		match = false
 	}
 
