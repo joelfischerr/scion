@@ -88,10 +88,6 @@ func (pq *PacketBufQueue) PopMultiple(number int) []*QPkt {
 
 	_, _ = pq.bufQueue.Read(pkts, false)
 
-	// dubdub := (*[]*QPkt)(unsafe.Pointer(&pkts))
-
-	// retArr := *dubdub
-
 	retArr := make([]*QPkt, number)
 
 	for k, pkt := range pkts {
