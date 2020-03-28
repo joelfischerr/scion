@@ -1,5 +1,5 @@
 // Copyright 2020 ETH Zurich
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,14 +18,12 @@
 package main
 
 import (
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/internal/metrics"
+	"github.com/scionproto/scion/go/border/qosqueues"
+	"github.com/scionproto/scion/go/border/qosscheduler"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctrl"
 	"github.com/scionproto/scion/go/border/rctx"
@@ -35,16 +33,21 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
-	"gopkg.in/yaml.v2"
 )
 
 const processBufCnt = 128
 
 const maxNotificationCount = 512
 
+// TODO: this path should be configure in br.toml
 const configFileLocation = "/home/fischjoe/go/src/github.com/joelfischerr/scion/go/border/sample-config.yaml"
 
+const noWorker = 1
+const workLength = 32
+
 var droppedPackets = 0
+
+var queueToUse = &qosqueues.ChannelPacketQueue{}
 
 // Router struct
 type Router struct {
@@ -62,23 +65,13 @@ type Router struct {
 	// can be caused by a SIGHUP reload.
 	setCtxMtx sync.Mutex
 
-	config              RouterConfig
-	notifications       chan *qPkt
-	flag                chan int
-	schedulerSurplus    surplus
-	schedulerSurplusMtx sync.Mutex
-	forwarder           func(rp *rpkt.RtrPkt)
-}
-
-type surplus struct {
-	surplus  int
-	payments []int
-}
-
-// RouterConfig is what I am loading from the config file
-type RouterConfig struct {
-	Queues []packetQueue `yaml:"Queues"`
-	Rules  []classRule   `yaml:"Rules"`
+	// TODO: Put this configuration somewhere else
+	config         qosqueues.InternalRouterConfig
+	schedul        qosscheduler.SchedulerInterface
+	legacyConfig   qosqueues.RouterConfig
+	notifications  chan *qosqueues.NPkt
+	workerChannels [](chan *qosqueues.QPkt)
+	forwarder      func(rp *rpkt.RtrPkt)
 }
 
 // NewRouter returns a new router
@@ -88,63 +81,41 @@ func NewRouter(id, confDir string) (*Router, error) {
 		return nil, err
 	}
 
-	r.initQueueing()
+	r.initQueueing(configFileLocation)
 
 	return r, nil
 }
 
-func (r *Router) loadConfigFile(path string) error {
+func (r *Router) initQueueing(location string) {
 
-	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-
-	log.Info("Current Path is", "path", dir)
-
-	yamlFile, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Info("yamlFile.Get ", "error", err)
-		return err
-	}
-	err = yaml.Unmarshal(yamlFile, &r.config)
-	if err != nil {
-		log.Error("Unmarshal: ", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (r *Router) initQueueing() {
-
-	//TODO: Figure out the actual path where the other config files are loaded
+	//TODO: Figure out the actual path where the other config files are loaded --> this path should be configure in br.toml
 	// r.loadConfigFile("/home/vagrant/go/src/github.com/joelfischerr/scion/go/border/sample-config.yaml")
-	err := r.loadConfigFile(configFileLocation)
+	err := r.loadConfigFile(location)
 
 	if err != nil {
 		log.Error("Loading config file failed", "error", err)
 		panic("Loading config file failed")
 	}
 
-	// Initialise other data structures
+	log.Debug("We have queues: ", "numberOfQueues", len(r.config.Queues))
+	log.Debug("We have rules: ", "numberOfRules", len(r.config.Rules))
 
-	for i := 0; i < len(r.config.Queues); i++ {
-		r.config.Queues[i].mutex = &sync.Mutex{}
-		r.config.Queues[i].length = 0
-		r.config.Queues[i].tb = tokenBucket{
-			MaxBandWidth: r.config.Queues[i].PoliceRate,
-			tokens:       r.config.Queues[i].PoliceRate,
-			lastRefill:   time.Now(),
-			mutex:        &sync.Mutex{}}
-	}
-
-	log.Info("We have queues: ", "numberOfQueues", len(r.config.Queues))
-
-	r.flag = make(chan int, len(r.config.Queues))
-	r.notifications = make(chan *qPkt, maxNotificationCount)
+	r.notifications = make(chan *qosqueues.NPkt, maxNotificationCount)
 	r.forwarder = r.forwardPacket
 
-	go func() {
-		r.drrDequer()
-	}()
+	r.schedul = &qosscheduler.RoundRobinScheduler{}
+
+	go r.schedul.Dequeuer(r.config, r.forwarder)
+
+	r.workerChannels = make([]chan *qosqueues.QPkt, min(noWorker, len(r.config.Queues)))
+
+	for i := range r.workerChannels {
+		r.workerChannels[i] = make(chan *qosqueues.QPkt, workLength)
+
+		go worker(&r.workerChannels[i])
+	}
+
+	log.Debug("Finish init queueing")
 }
 
 // Start sets up networking, and starts go routines for handling the main packet
@@ -191,9 +162,6 @@ func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 		for i := 0; i < n; i++ {
 			rp := pkts[i].(*rpkt.RtrPkt)
 			r.processPacket(rp)
-			// the packet might still be queued so we can't release it here.
-			// it is released in forwardPacket
-			// rp.Release()
 			pkts[i] = nil
 		}
 	}
@@ -268,6 +236,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	// 	metrics.Process.Pkts(l).Inc()
 	// }
 
+	log.Debug("Should queue packet")
 	r.queuePacket(rp)
 	// r.forwardPacket(rp);
 }
@@ -298,45 +267,57 @@ func (r *Router) forwardPacket(rp *rpkt.RtrPkt) {
 func (r *Router) queuePacket(rp *rpkt.RtrPkt) {
 
 	log.Debug("preRouteStep")
+	log.Debug("We have rules: ", "len(Rules)", len(r.config.Rules))
 
-	// Put packets destined for 1-ff00:0:110 on the slow queue
-	// Put all other packets from br2 on a faster queue but still delayed
-	// At the moment no queue is slow
+	queueNo := qosqueues.GetQueueNumberWithHashFor(&r.config, rp)
+	qp := qosqueues.QPkt{Rp: rp, QueueNo: queueNo}
 
-	queueNo := getQueueNumberFor(rp, &r.config.Rules)
-	qp := qPkt{rp: rp, queueNo: queueNo}
+	r.workerChannels[(queueNo % noWorker)] <- &qp
 
-	log.Info("Queuenumber is ", "queuenumber", queueNo)
-	log.Info("Queue length is ", "len(r.config.Queues)", len(r.config.Queues))
+}
 
-	polAct := r.config.Queues[queueNo].police(&qp, queueNo == 1)
-	profAct := r.config.Queues[queueNo].checkAction()
+func worker(workChannel *chan *qosqueues.QPkt) {
 
-	act := returnAction(polAct, profAct)
+	for {
+		qp := <-*workChannel
+		queueNo := qp.QueueNo
 
-	// if queueNo == 1 {
-	// 	panic("We have received a packet on queue 1 🥳")
-	// }
+		log.Debug("Queuenumber is ", "queuenumber", queueNo)
+		log.Debug("Queue length is ", "len(r.config.Queues)", len(r.config.Queues))
 
-	if act == PASS {
-		r.config.Queues[queueNo].enqueue(&qp)
-	} else if act == NOTIFY {
-		r.config.Queues[queueNo].enqueue(&qp)
-		qp.sendNotification()
-	} else if act == DROPNOTIFY {
-		r.dropPacket(qp.rp)
-		qp.sendNotification()
-	} else if act == DROP {
-		r.dropPacket(qp.rp)
-	} else {
-		// This should never happen
-		r.config.Queues[queueNo].enqueue(&qp)
+		putOnQueue(queueNo, qp)
 	}
 
-	// According to gobyexample all sends are blocking and this is the standard way to do non-blocking sends (https://gobyexample.com/non-blocking-channel-operations)
+}
+
+func putOnQueue(queueNo int, qp *qosqueues.QPkt) {
+	polAct := r.config.Queues[queueNo].Police(qp)
+	profAct := r.config.Queues[queueNo].CheckAction()
+
+	act := qosqueues.ReturnAction(polAct, profAct)
+
+	switch act {
+	case qosqueues.PASS:
+		r.config.Queues[queueNo].Enqueue(qp)
+	case qosqueues.NOTIFY:
+		r.config.Queues[queueNo].Enqueue(qp)
+		r.sendNotification(qp)
+	case qosqueues.DROPNOTIFY:
+		r.dropPacket(qp.Rp)
+		r.sendNotification(qp)
+	case qosqueues.DROP:
+		r.dropPacket(qp.Rp)
+	default:
+		r.config.Queues[queueNo].Enqueue(qp)
+	}
+}
+
+func (r *Router) sendNotification(qp *qosqueues.QPkt) {
+
+	np := qosqueues.NPkt{Rule: qosqueues.GetRuleWithHashFor(&r.config, qp.Rp), Qpkt: qp}
+
 	select {
-	case r.flag <- queueNo:
+	case r.notifications <- &np:
 	default:
 	}
-
 }
