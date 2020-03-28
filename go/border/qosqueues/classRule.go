@@ -23,8 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-// TODO: Matching rules is currently based on string comparisons
-
 // Rule contains a rule for matching packets
 type classRule struct {
 	// This is currently means the ID of the sending border router
@@ -62,15 +60,15 @@ type matchMode int
 
 const (
 	// EXACT match the exact ISD and AS
-	EXACT matchMode = 0
+	EXACT matchMode = iota
 	// ISDONLY match the ISD only
-	ISDONLY matchMode = 1
+	ISDONLY
 	// ASONLY match the AS only
-	ASONLY matchMode = 2
+	ASONLY
 	// RANGE match AS and ISD in this range
-	RANGE matchMode = 3
+	RANGE
 	// ANY match anything
-	ANY matchMode = 4
+	ANY
 )
 
 func ConvClassRuleToInternal(cr classRule) (InternalClassRule, error) {
