@@ -11,7 +11,6 @@ go_library(
         "revinfo.go",
         "router.go",
         "setup.go",
-        "scheduler.go",
         "loadConfig.go",
         "setup-posix.go",
     ],
@@ -19,6 +18,7 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//go/border/qosqueues:go_default_library",
+        "//go/border/qosscheduler:go_default_library",
         "//go/border/brconf:go_default_library",
         "//go/border/ifstate:go_default_library",
         "//go/border/internal/metrics:go_default_library",
