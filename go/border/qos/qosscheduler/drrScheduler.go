@@ -1,7 +1,7 @@
 package qosscheduler
 
 import (
-	"github.com/scionproto/scion/go/border/qosqueues"
+	"github.com/scionproto/scion/go/border/qos/qosqueues"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/log"
 )
@@ -11,6 +11,7 @@ import (
 type deficitRoundRobinScheduler struct {
 	quantumSum  int
 	totalLength int
+	messages    chan bool
 }
 
 var _ SchedulerInterface = (*deficitRoundRobinScheduler)(nil)
@@ -44,10 +45,16 @@ func (sched *deficitRoundRobinScheduler) dequeue(routerConfig qosqueues.Internal
 }
 
 func (sched *deficitRoundRobinScheduler) Dequeuer(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp *rpkt.RtrPkt)) {
-
+	if sched.totalLength == 0 {
+		panic("There are no queues to dequeue from. Please check that Init is called")
+	}
 	for {
 		for i := 0; i < sched.totalLength; i++ {
 			sched.dequeue(routerConfig, forwarder, i)
 		}
 	}
+}
+
+func (sched *deficitRoundRobinScheduler) GetMessages() *chan bool {
+	return &sched.messages
 }
