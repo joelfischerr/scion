@@ -193,7 +193,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	// 	metrics.Process.Pkts(l).Inc()
 	// }
 
-	log.Debug("Should queue packet")
+	// log.Debug("Should queue packet")
 	r.qosConfig.QueuePacket(rp)
 	// r.forwardPacket(rp);
 }
@@ -202,7 +202,7 @@ func (r *Router) forwardPacket(rp *rpkt.RtrPkt) {
 
 	defer rp.Release()
 
-	log.Debug("Forwarding packet")
+	// log.Debug("Forwarding packet")
 
 	// Forward the packet. Packets destined to self are forwarded to the local dispatcher.
 	if err := rp.Route(); err != nil {
