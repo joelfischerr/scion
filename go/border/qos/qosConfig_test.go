@@ -98,7 +98,7 @@ func TestQueueSinglePacket(t *testing.T) {
 	qosConfig, _ := InitQueueing(configFileLocation, forwardPacketByDrop)
 	arr := getPackets(7 * 5 * 1000 * 1000) // To get to around 20 seconds on my machine which will give a decent profile
 
-	f, err := os.Create("sadJoelProfile.prof")
+	f, err := os.Create("cpuProfile.prof")
 	if err != nil {
 		log.Fatal(err)
 	}
