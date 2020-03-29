@@ -46,6 +46,17 @@ const (
 	PrimeDROPNOTIFY PrimePoliceAction = 13
 )
 
+type QPkt struct {
+	QueueNo int
+	Act     Action
+	Rp      *rpkt.RtrPkt
+}
+
+type NPkt struct {
+	Rule *InternalClassRule
+	Qpkt *QPkt
+}
+
 type Violation int
 
 const (
@@ -61,17 +72,6 @@ type Action struct {
 	action PoliceAction
 }
 
-type QPkt struct {
-	QueueNo int
-	Act     Action
-	Rp      *rpkt.RtrPkt
-}
-
-type NPkt struct {
-	Rule *InternalClassRule
-	Qpkt *QPkt
-}
-
 type actionProfile struct {
 	FillLevel int          `yaml:"fill-level"`
 	Prob      int          `yaml:"prob"`
@@ -81,9 +81,14 @@ type actionProfile struct {
 type congestionWarningApproach int
 type congestionWarningInformationContent int
 
+// type CongestionWarning struct {
+// 	approach    congestionWarningApproach           `yaml:"approach"`
+// 	infoContent congestionWarningInformationContent `yaml:"informationContent"`
+// }
+
 type CongestionWarning struct {
-	approach    congestionWarningApproach           `yaml:"approach"`
-	infoContent congestionWarningInformationContent `yaml:"informationContent"`
+	Approach    congestionWarningApproach           `yaml:"approach"`
+	InfoContent congestionWarningInformationContent `yaml:"informationContent"`
 }
 
 type ExternalPacketQueue struct {
@@ -121,6 +126,7 @@ type PacketQueueInterface interface {
 	Police(qp *QPkt) PoliceAction
 	GetPriority() int
 	GetMinBandwidth() int
+	GetPacketQueue() PacketQueue
 }
 
 func ReturnActionOld(polAction PoliceAction, profAction PoliceAction) PoliceAction {

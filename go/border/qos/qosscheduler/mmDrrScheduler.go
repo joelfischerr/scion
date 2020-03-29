@@ -3,7 +3,7 @@ package qosscheduler
 import (
 	"sync"
 
-	"github.com/scionproto/scion/go/border/qosqueues"
+	"github.com/scionproto/scion/go/border/qos/qosqueues"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/log"
 )
@@ -15,6 +15,7 @@ type MinMaxDeficitRoundRobinScheduler struct {
 	totalLength         int
 	schedulerSurplus    surplus
 	schedulerSurplusMtx *sync.Mutex
+	messages            chan bool
 }
 
 type surplus struct {
@@ -39,7 +40,9 @@ func (sched *MinMaxDeficitRoundRobinScheduler) Init(routerConfig qosqueues.Inter
 }
 
 func (sched *MinMaxDeficitRoundRobinScheduler) Dequeuer(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp *rpkt.RtrPkt)) {
-
+	if sched.totalLength == 0 {
+		panic("There are no queues to dequeue from. Please check that Init is called")
+	}
 	for {
 		for i := 0; i < sched.totalLength; i++ {
 			sched.dequeue(routerConfig, forwarder, i)
@@ -111,4 +114,8 @@ func (sched *MinMaxDeficitRoundRobinScheduler) surplusAvailable() bool {
 	defer sched.schedulerSurplusMtx.Unlock()
 
 	return sched.schedulerSurplus.Surplus > 0
+}
+
+func (sched *MinMaxDeficitRoundRobinScheduler) GetMessages() *chan bool {
+	return &sched.messages
 }

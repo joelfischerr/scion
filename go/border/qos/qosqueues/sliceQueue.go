@@ -3,8 +3,6 @@ package qosqueues
 import (
 	"math/rand"
 	"sync"
-
-	"github.com/scionproto/scion/go/lib/log"
 )
 
 type PacketSliceQueue struct {
@@ -36,7 +34,6 @@ func (pq *PacketSliceQueue) Enqueue(rp *QPkt) {
 
 	pq.queue = append(pq.queue, rp)
 	pq.length = pq.length + 1
-
 }
 
 func (pq *PacketSliceQueue) canDequeue() bool {
@@ -87,17 +84,17 @@ func (pq *PacketSliceQueue) CheckAction() PoliceAction {
 
 	level := pq.GetFillLevel()
 
-	log.Trace("Current level is", "level", level)
-	log.Trace("Profiles are", "profiles", pq.pktQue.Profile)
+	//log.Trace("Current level is", "level", level)
+	//log.Trace("Profiles are", "profiles", pq.pktQue.Profile)
 
 	for j := len(pq.pktQue.Profile) - 1; j >= 0; j-- {
 		if level >= pq.pktQue.Profile[j].FillLevel {
-			log.Trace("Matched a rule!")
+			//log.Trace("Matched a rule!")
 			if rand.Intn(100) < (pq.pktQue.Profile[j].Prob) {
-				log.Trace("Take Action!")
+				//log.Trace("Take Action!")
 				return pq.pktQue.Profile[j].Action
 			}
-			log.Trace("Do not take Action")
+			//log.Trace("Do not take Action")
 
 		}
 	}
