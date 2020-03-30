@@ -100,11 +100,11 @@ func ConvClassRuleToInternal(cr classRule) (InternalClassRule, error) {
 	return rule, nil
 }
 
-func rulesToMap(crs []InternalClassRule) (map[addr.IA][]*InternalClassRule, map[addr.IA][]*InternalClassRule) {
+func RulesToMap(crs []InternalClassRule) (map[addr.IA][]*InternalClassRule, map[addr.IA][]*InternalClassRule) {
 	sourceRules := make(map[addr.IA][]*InternalClassRule)
 	destinationRules := make(map[addr.IA][]*InternalClassRule)
 
-	for _, cr := range crs {
+	for i, cr := range crs {
 		if cr.SourceAs.matchMode == RANGE {
 			lowLimI := uint16(cr.SourceAs.lowLim.I)
 			upLimI := uint16(cr.SourceAs.upLim.I)
@@ -113,13 +113,13 @@ func rulesToMap(crs []InternalClassRule) (map[addr.IA][]*InternalClassRule, map[
 
 			for i := lowLimI; i <= upLimI; i++ {
 				for j := lowLimA; j <= upLimA; j++ {
-					sourceRules[addr.IA{I: addr.ISD(i), A: addr.AS(j)}] = append(sourceRules[addr.IA{I: addr.ISD(i), A: addr.AS(j)}], &cr)
+					sourceRules[addr.IA{I: addr.ISD(i), A: addr.AS(j)}] = append(sourceRules[addr.IA{I: addr.ISD(i), A: addr.AS(j)}], &crs[i])
 				}
 			}
 
 		} else {
 
-			sourceRules[cr.SourceAs.IA] = append(sourceRules[cr.SourceAs.IA], &cr)
+			sourceRules[cr.SourceAs.IA] = append(sourceRules[cr.SourceAs.IA], &crs[i])
 		}
 		if cr.DestinationAs.matchMode == RANGE {
 			lowLimI := uint16(cr.DestinationAs.lowLim.I)
@@ -130,11 +130,11 @@ func rulesToMap(crs []InternalClassRule) (map[addr.IA][]*InternalClassRule, map[
 			for i := lowLimI; i <= upLimI; i++ {
 				for j := lowLimA; j <= upLimA; j++ {
 					addr := addr.IA{I: addr.ISD(i), A: addr.AS(j)}
-					destinationRules[addr] = append(destinationRules[addr], &cr)
+					destinationRules[addr] = append(destinationRules[addr], &crs[i])
 				}
 			}
 		} else {
-			destinationRules[cr.DestinationAs.IA] = append(destinationRules[cr.DestinationAs.IA], &cr)
+			destinationRules[cr.DestinationAs.IA] = append(destinationRules[cr.DestinationAs.IA], &crs[i])
 		}
 	}
 
@@ -183,6 +183,9 @@ func GetRuleWithHashFor(config *InternalRouterConfig, rp *rpkt.RtrPkt) *Internal
 
 	queues1 := config.SourceRules[srcAddr]
 	queues2 := config.DestinationRules[dstAddr]
+
+	matches = []InternalClassRule{}
+	returnRule = InternalClassRule{QueueNumber: 0}
 
 	for _, rul1 := range queues1 {
 		for _, rul2 := range queues2 {
