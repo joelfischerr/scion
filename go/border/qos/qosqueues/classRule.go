@@ -1,5 +1,5 @@
 // Copyright 2020 ETH Zurich
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2020 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import (
 // TODO: Matching rules is currently based on string comparisons
 
 // Rule contains a rule for matching packets
-
 type classRule struct {
 	// This is currently means the ID of the sending border router
 	Name                 string `yaml:"name"`
@@ -146,7 +145,7 @@ func rulesToMap(crs []InternalClassRule) (map[addr.IA][]*InternalClassRule, map[
 
 }
 
-func getMatchFromRule(cr configFileClassRule, matchModeField int, matchRuleField string) (matchRule, error) {
+func getMatchFromRule(cr classRule, matchModeField int, matchRuleField string) (matchRule, error) {
 	switch matchMode(matchModeField) {
 	case EXACT, ASONLY, ISDONLY, ANY:
 		IA, err := addr.IAFromString(matchRuleField)
@@ -177,6 +176,9 @@ func getMatchFromRule(cr configFileClassRule, matchModeField int, matchRuleField
 	return matchRule{}, common.NewBasicError("Invalid matchMode declared", nil, "matchMode", matchModeField)
 }
 
+var matches = make([]InternalClassRule, 0)
+var returnRule InternalClassRule
+
 func GetRuleWithHashFor(config *InternalRouterConfig, rp *rpkt.RtrPkt) *InternalClassRule {
 
 	srcAddr, _ := rp.SrcIA()
@@ -184,9 +186,6 @@ func GetRuleWithHashFor(config *InternalRouterConfig, rp *rpkt.RtrPkt) *Internal
 
 	queues1 := config.SourceRules[srcAddr]
 	queues2 := config.DestinationRules[dstAddr]
-
-	matches := make([]InternalClassRule, 0)
-	returnRule := InternalClassRule{QueueNumber: 0}
 
 	for _, rul1 := range queues1 {
 		for _, rul2 := range queues2 {
@@ -295,14 +294,14 @@ func (cr *classRule) matchRule(rp *rpkt.RtrPkt) bool {
 	srcAddr, _ := rp.SrcIA()
 	// log.Debug("Source Address is " + srcAddr.String())
 	// log.Debug("Comparing " + srcAddr.String() + " and " + cr.SourceAs)
-	if !strings.Contains(srcAddr.String(), cr.SourceAs.IA.String()) {
+	if !strings.Contains(srcAddr.String(), cr.SourceAs) {
 		match = false
 	}
 
 	dstAddr, _ := rp.DstIA()
 	// log.Debug("Destination Address is " + dstAddr.String())
 	// log.Debug("Comparing " + dstAddr.String() + " and " + cr.DestinationAs)
-	if !strings.Contains(dstAddr.String(), cr.DestinationAs.IA.String()) {
+	if !strings.Contains(dstAddr.String(), cr.DestinationAs) {
 		match = false
 	}
 
