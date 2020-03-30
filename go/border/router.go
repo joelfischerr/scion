@@ -86,9 +86,6 @@ func (r *Router) Start() {
 		defer log.HandlePanic()
 		rctrl.Control(r.sRevInfoQ, cfg.General.ReconnectToDispatcher)
 	}()
-	if err := r.startDiscovery(); err != nil {
-		fatal.Fatal(common.NewBasicError("Unable to start discovery", err))
-	}
 }
 
 // ReloadConfig handles reloading the configuration when SIGHUP is received.
