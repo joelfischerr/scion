@@ -222,7 +222,7 @@ func loadConfigFile(path string) (qosqueues.RouterConfig, qosqueues.InternalRout
 		muta := &sync.Mutex{}
 		mutb := &sync.Mutex{}
 
-		queueToUse := &qosqueues.PacketSliceQueue{}
+		queueToUse := &qosqueues.ChannelPacketQueue{}
 
 		//log.Trace("We have loaded rc.Queues", "rc.Queues", rc.Queues)
 		//log.Trace("We have gotten the queue", "externalQueue", extQue.CongWarning)
