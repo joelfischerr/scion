@@ -176,6 +176,9 @@ func getMatchFromRule(cr classRule, matchModeField int, matchRuleField string) (
 	return matchRule{}, common.NewBasicError("Invalid matchMode declared", nil, "matchMode", matchModeField)
 }
 
+var matches = make([]InternalClassRule, 0)
+var returnRule InternalClassRule
+
 func GetRuleWithHashFor(config *InternalRouterConfig, rp *rpkt.RtrPkt) *InternalClassRule {
 
 	srcAddr, _ := rp.SrcIA()
@@ -183,9 +186,6 @@ func GetRuleWithHashFor(config *InternalRouterConfig, rp *rpkt.RtrPkt) *Internal
 
 	queues1 := config.SourceRules[srcAddr]
 	queues2 := config.DestinationRules[dstAddr]
-
-	matches := make([]InternalClassRule, 0)
-	returnRule := InternalClassRule{QueueNumber: 0}
 
 	for _, rul1 := range queues1 {
 		for _, rul2 := range queues2 {
