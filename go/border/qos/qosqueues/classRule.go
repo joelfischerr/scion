@@ -32,8 +32,6 @@ type classRule struct {
 	Priority             int    `yaml:"priority"`
 	SourceAs             string `yaml:"sourceAs"`
 	SourceMatchMode      int    `yaml:"sourceMatchMode"`
-	NextHopAs            string `yaml:"nextHopAs"`
-	NextHopMatchMode     int    `yaml:"nextHopMatchMode"`
 	DestinationAs        string `yaml:"destinationAs"`
 	DestinationMatchMode int    `yaml:"destinationMatchMode"`
 	L4Type               []int  `yaml:"L4Type"`
@@ -95,7 +93,6 @@ func ConvClassRuleToInternal(cr classRule) (InternalClassRule, error) {
 		Name:          cr.Name,
 		Priority:      cr.Priority,
 		SourceAs:      sourceMatch,
-		NextHopAs:     matchRule{},
 		DestinationAs: destinationMatch,
 		L4Type:        l4t,
 		QueueNumber:   cr.QueueNumber}
@@ -281,10 +278,8 @@ func (cr *InternalClassRule) matchInternalRule(rp *rpkt.RtrPkt) bool {
 
 	sourceMatches := cr.matchSingleRule(rp, &cr.SourceAs, rp.SrcIA)
 	destinationMatches := cr.matchSingleRule(rp, &cr.DestinationAs, rp.DstIA)
-	// nextHopMatches := cr.matchSingleRule(rp, &cr.NextHopAs, rp.SrcIA)
-	nextHopMatches := true
 
-	return sourceMatches && destinationMatches && nextHopMatches
+	return sourceMatches && destinationMatches
 }
 
 func (cr *classRule) matchRule(rp *rpkt.RtrPkt) bool {
