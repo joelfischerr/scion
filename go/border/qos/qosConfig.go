@@ -90,8 +90,12 @@ func InitQueueing(location string, forwarder func(rp *rpkt.RtrPkt)) (QosConfigur
 		panic("Loading config file failed")
 	}
 
-	//log.Trace("We have queues: ", "numberOfQueues", len(qConfig.config.Queues))
-	//log.Trace("We have rules: ", "numberOfRules", len(qConfig.config.Rules))
+	qConfig.config.SourceRules, qConfig.config.DestinationRules = qosqueues.RulesToMap(qConfig.config.Rules)
+
+	log.Trace("We have queues: ", "numberOfQueues", len(qConfig.config.Queues))
+	log.Trace("We have rules: ", "numberOfRules", len(qConfig.config.Rules))
+	log.Trace("We have maps: ", "qConfig.config.SourceRules", qConfig.config.SourceRules)
+	log.Trace("We have maps: ", "qConfig.config.DestinationRules", qConfig.config.DestinationRules)
 
 	qConfig.notifications = make(chan *qosqueues.NPkt, maxNotificationCount)
 	qConfig.Forwarder = forwarder
@@ -215,6 +219,11 @@ func loadConfigFile(path string) (qosqueues.RouterConfig, qosqueues.InternalRout
 		internalRules = append(internalRules, intRule)
 	}
 
+	log.Trace("Loop over Rules")
+	for _, iq := range internalRules {
+		log.Trace("We have gotten the rule", "rule", iq)
+	}
+
 	var intQue qosqueues.PacketQueue
 
 	for _, extQue := range rc.Queues {
@@ -232,7 +241,7 @@ func loadConfigFile(path string) (qosqueues.RouterConfig, qosqueues.InternalRout
 		//log.Trace("We have gotten the queue", "queue", intQue.Name)
 		queueToUse.InitQueue(intQue, muta, mutb)
 		//log.Trace("We have gotten the queue", "channelPacketQueue", queueToUse.GetPacketQueue().CongWarning)
-		//log.Trace("We have gotten the queue", "channelPacketQueue", queueToUse.GetPacketQueue().Name)
+		// log.Trace("We have gotten the queue", "channelPacketQueue", queueToUse.GetPacketQueue().Name)
 		internalQueues = append(internalQueues, queueToUse)
 	}
 
