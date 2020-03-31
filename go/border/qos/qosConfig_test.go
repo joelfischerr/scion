@@ -1,4 +1,4 @@
-package qos
+package qos_test
 
 import (
 	"fmt"
@@ -12,33 +12,35 @@ import (
 	"time"
 
 	"github.com/inconshreveable/log15"
+	"github.com/scionproto/scion/go/border/qos"
+	qosconfload "github.com/scionproto/scion/go/border/qos/qosConfload"
 	"github.com/scionproto/scion/go/border/rpkt"
 )
 
 const configFileLocation = "/home/fischjoe/go/src/github.com/joelfischerr/scion/go/border/qos/sample-config.yaml"
 
-func TestForMarc(t *testing.T) {
+// func TestForMarc(t *testing.T) {
 
-	fmt.Println("Hello test 2")
+// 	fmt.Println("Hello test 2")
 
-	qosConfig, _ := InitQueueing(configFileLocation, nil)
+// 	qosConfig, _ := InitQueueing(configFileLocation, nil)
 
-	fmt.Println("Config is", qosConfig)
+// 	fmt.Println("Config is", qosConfig)
 
-	fmt.Println("Name is", qosConfig.config.Queues[0].GetPacketQueue().Name)
-	fmt.Println("Name is", qosConfig.config.Queues[1].GetPacketQueue().Name)
-	fmt.Println("Name is", qosConfig.config.Queues[2].GetPacketQueue().Name)
+// 	fmt.Println("Name is", qosConfig.config.Queues[0].GetPacketQueue().Name)
+// 	fmt.Println("Name is", qosConfig.config.Queues[1].GetPacketQueue().Name)
+// 	fmt.Println("Name is", qosConfig.config.Queues[2].GetPacketQueue().Name)
 
-	fmt.Println("Profile is", qosConfig.config.Queues[0].GetPacketQueue().Profile)
-	fmt.Println("Profile is", qosConfig.config.Queues[1].GetPacketQueue().Profile)
-	fmt.Println("Profile is", qosConfig.config.Queues[2].GetPacketQueue().Profile)
+// 	fmt.Println("Profile is", qosConfig.config.Queues[0].GetPacketQueue().Profile)
+// 	fmt.Println("Profile is", qosConfig.config.Queues[1].GetPacketQueue().Profile)
+// 	fmt.Println("Profile is", qosConfig.config.Queues[2].GetPacketQueue().Profile)
 
-	fmt.Println("CongWarning is", qosConfig.config.Queues[0].GetPacketQueue().CongWarning)
-	fmt.Println("CongWarning is", qosConfig.config.Queues[1].GetPacketQueue().CongWarning)
-	fmt.Println("CongWarning is", qosConfig.config.Queues[2].GetPacketQueue().CongWarning)
+// 	fmt.Println("CongWarning is", qosConfig.config.Queues[0].GetPacketQueue().CongWarning)
+// 	fmt.Println("CongWarning is", qosConfig.config.Queues[1].GetPacketQueue().CongWarning)
+// 	fmt.Println("CongWarning is", qosConfig.config.Queues[2].GetPacketQueue().CongWarning)
 
-	// t.Errorf("Show Logs")
-}
+// 	// t.Errorf("Show Logs")
+// }
 
 func getPackets(numberOfPackets int) []*rpkt.RtrPkt {
 
@@ -75,7 +77,8 @@ func BenchmarkQueueSinglePacket(b *testing.B) {
 	}
 	root.SetHandler(log15.Must.FileHandler(file.Name(), log15.LogfmtFormat()))
 
-	qosConfig, _ := InitQueueing(configFileLocation, forwardPacketByDrop)
+	qosConfig, _ := qos.LoadQos(configFileLocation)
+	qos.InitQueueing(qosConfig, forwardPacketByDrop)
 	singlePkt := rpkt.PrepareRtrPacketWithStrings("1-ff00:0:110", "1-ff00:0:111", 1)
 
 	b.ResetTimer()
@@ -86,15 +89,8 @@ func BenchmarkQueueSinglePacket(b *testing.B) {
 
 func TestSingleEnqueue(t *testing.T) {
 
-	root := log15.Root()
-
-	file, err := ioutil.TempFile("", "benchmark-log")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	root.SetHandler(log15.Must.FileHandler(file.Name(), log15.LogfmtFormat()))
-
-	qosConfig, _ := InitQueueing(configFileLocation, forwardPacketByDrop)
+	qosConfig, _ := qos.LoadQos(configFileLocation)
+	qos.InitQueueing(qosConfig, forwardPacketByDrop)
 	pkt := rpkt.PrepareRtrPacketWithStrings("1-ff00:0:110", "1-ff00:0:111", 1)
 
 	qosConfig.QueuePacket(pkt)
@@ -111,7 +107,7 @@ func BenchmarkGolangRandom(b *testing.B) {
 
 var testQueue = make(chan int, 1000)
 
-func forwardPacketByDrop(rp *rpkt.RtrPkt) {
+func forwardPacketByDrop(rp qosconfload.RpktInterface) {
 	testQueue <- 0
 	rp.Release()
 }
@@ -120,10 +116,11 @@ func TestEnqueueWithProfile(t *testing.T) {
 
 	start := time.Now()
 
-	runs := 6 * 1000 * 10
+	runs := 6 * 1000 * 100
 	singleRun := 1000 // Should not exceed maximum queue length + capacity of notification
 
-	qosConfig, _ := InitQueueing(configFileLocation, forwardPacketByDrop)
+	qosConfig, _ := qos.LoadQos(configFileLocation)
+	qos.InitQueueing(qosConfig, forwardPacketByDrop)
 	arr := getPackets(singleRun)
 
 	runtime.SetCPUProfileRate(500)
@@ -145,7 +142,7 @@ func TestEnqueueWithProfile(t *testing.T) {
 			// fmt.Println("Dequeue", i)
 			select {
 			case <-testQueue:
-			case <-qosConfig.notifications:
+			case <-qosConfig.Notifications:
 			}
 		}
 		if j < 11 || j%11 == 0 {
@@ -171,7 +168,8 @@ func BenchmarkEnqueueForProfile(b *testing.B) {
 	start := time.Now()
 	singleRun := 1024 // Should not exceed maximum queue length + capacity of notification
 
-	qosConfig, _ := InitQueueing(configFileLocation, forwardPacketByDrop)
+	qosConfig, _ := qos.LoadQos(configFileLocation)
+	qos.InitQueueing(qosConfig, forwardPacketByDrop)
 	arr := getPackets(singleRun)
 
 	runtime.SetCPUProfileRate(500)
@@ -196,7 +194,7 @@ func BenchmarkEnqueueForProfile(b *testing.B) {
 			fmt.Println("Dequeue", i)
 			select {
 			case <-testQueue:
-			case <-qosConfig.notifications:
+			case <-qosConfig.Notifications:
 			}
 		}
 		if j < 11 || j%111 == 0 {

@@ -18,7 +18,7 @@ package qosqueues
 import (
 	"sync"
 
-	"github.com/scionproto/scion/go/border/rpkt"
+	qosconfload "github.com/scionproto/scion/go/border/qos/qosConfload"
 )
 
 type PoliceAction uint8
@@ -49,7 +49,7 @@ const (
 type QPkt struct {
 	QueueNo int
 	Act     Action
-	Rp      *rpkt.RtrPkt
+	Rp      qosconfload.RpktInterface
 }
 
 type NPkt struct {

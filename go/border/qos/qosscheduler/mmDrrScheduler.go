@@ -3,8 +3,8 @@ package qosscheduler
 import (
 	"sync"
 
+	qosconfload "github.com/scionproto/scion/go/border/qos/qosConfload"
 	"github.com/scionproto/scion/go/border/qos/qosqueues"
-	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/log"
 )
 
@@ -39,7 +39,7 @@ func (sched *MinMaxDeficitRoundRobinScheduler) Init(routerConfig qosqueues.Inter
 
 }
 
-func (sched *MinMaxDeficitRoundRobinScheduler) Dequeuer(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp *rpkt.RtrPkt)) {
+func (sched *MinMaxDeficitRoundRobinScheduler) Dequeuer(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp qosconfload.RpktInterface)) {
 	if sched.totalLength == 0 {
 		panic("There are no queues to dequeue from. Please check that Init is called")
 	}
@@ -50,7 +50,7 @@ func (sched *MinMaxDeficitRoundRobinScheduler) Dequeuer(routerConfig qosqueues.I
 	}
 }
 
-func (sched *MinMaxDeficitRoundRobinScheduler) dequeue(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp *rpkt.RtrPkt), queueNo int) {
+func (sched *MinMaxDeficitRoundRobinScheduler) dequeue(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp qosconfload.RpktInterface), queueNo int) {
 
 	length := routerConfig.Queues[queueNo].GetLength()
 	pktToDequeue := min(64*(routerConfig.Queues[queueNo].GetMinBandwidth()/sched.quantumSum), 1)

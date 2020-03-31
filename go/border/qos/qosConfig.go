@@ -22,13 +22,15 @@ import (
 	"strings"
 	"sync"
 
+	qosconfload "github.com/scionproto/scion/go/border/qos/qosConfload"
 	"github.com/scionproto/scion/go/border/qos/qosqueues"
 	"github.com/scionproto/scion/go/border/qos/qosscheduler"
-	"github.com/scionproto/scion/go/border/rpkt"
+	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/lib/log"
-	"gopkg.in/yaml.v2"
 )
+
+// var _ qosconfload.RpktInterface = (*rpkt.RtrPkt)(nil)
 
 const maxNotificationCount = 1024
 
@@ -38,9 +40,9 @@ type QosConfiguration struct {
 	config         qosqueues.InternalRouterConfig
 	schedul        qosscheduler.SchedulerInterface
 	legacyConfig   qosqueues.RouterConfig
-	notifications  chan *qosqueues.NPkt
+	Notifications  chan *qosqueues.NPkt
 	workerChannels [](chan *qosqueues.QPkt)
-	Forwarder      func(rp *rpkt.RtrPkt)
+	Forwarder      func(rp qosconfload.RpktInterface)
 
 	droppedPackets int
 }
@@ -74,26 +76,29 @@ func (q *QosConfiguration) GetLegacyConfig() *qosqueues.RouterConfig {
 	return &q.legacyConfig
 }
 
-func InitQueueing(location string, forwarder func(rp *rpkt.RtrPkt)) (QosConfiguration, error) {
+func LoadQos(location string) (QosConfiguration, error) {
 
 	qConfig := QosConfiguration{}
-
-	noWorkers := max(1, min(3, len(qConfig.config.Queues)))
-
-	qConfig.worker = workerConfiguration{noWorkers, 64}
 
 	var err error
 	qConfig.legacyConfig, qConfig.config, err = loadConfigFile(location)
 
 	if err != nil {
 		log.Error("Loading config file failed", "error", err)
-		panic("Loading config file failed")
+		// panic("Loading config file failed")
 	}
 
-	//log.Trace("We have queues: ", "numberOfQueues", len(qConfig.config.Queues))
-	//log.Trace("We have rules: ", "numberOfRules", len(qConfig.config.Rules))
+	return qConfig, err
 
-	qConfig.notifications = make(chan *qosqueues.NPkt, maxNotificationCount)
+}
+
+func InitQueueing(qConfig QosConfiguration, forwarder func(rp qosconfload.RpktInterface)) (QosConfiguration, error) {
+
+	noWorkers := max(1, min(3, len(qConfig.config.Queues)))
+
+	qConfig.worker = workerConfiguration{noWorkers, 64}
+
+	qConfig.Notifications = make(chan *qosqueues.NPkt, maxNotificationCount)
 	qConfig.Forwarder = forwarder
 
 	qConfig.schedul = &qosscheduler.RoundRobinScheduler{}
@@ -106,19 +111,21 @@ func InitQueueing(location string, forwarder func(rp *rpkt.RtrPkt)) (QosConfigur
 	for i := range qConfig.workerChannels {
 		qConfig.workerChannels[i] = make(chan *qosqueues.QPkt, qConfig.worker.workLength)
 
-		//log.Trace("Start worker", "workerno", i)
 		go worker(&qConfig, &qConfig.workerChannels[i])
 	}
-
-	//log.Trace("Finish init queueing")
-
 	return qConfig, nil
 }
 
-func (qosConfig *QosConfiguration) QueuePacket(rp *rpkt.RtrPkt) {
+func (qosConfig *QosConfiguration) QueuePacket(rp qosconfload.RpktInterface) {
 
-	//log.Trace("preRouteStep")
+	log.Debug("preRouteStep")
 	//log.Trace("We have rules: ", "len(Rules)", len(qosConfig.GetConfig().Rules))
+
+	if l4hd, err := rp.L4Hdr(true); err == nil {
+		// log.Debug("L4Type is", "rp.L4Type", rp.L4Type)
+		// log.Debug("L4Type as int is", "rp.CmnHdr.NextHdr", int(rp.CmnHdr.NextHdr))
+		log.Debug("L4Type is", "rp.L4Hdr(true).L4Type", l4hd.L4Type)
+	}
 
 	queueNo := qosqueues.GetQueueNumberWithHashFor(qosConfig.GetConfig(), rp)
 	qp := qosqueues.QPkt{Rp: rp, QueueNo: queueNo}
@@ -176,20 +183,20 @@ func (qosConfig *QosConfiguration) SendNotification(qp *qosqueues.QPkt) {
 
 	np := qosqueues.NPkt{Rule: qosqueues.GetRuleWithHashFor(&qosConfig.config, qp.Rp), Qpkt: qp}
 
-	// qosConfig.notifications <- &np
+	// qosConfig.Notifications <- &np
 
 	// TODO: Remove later
 	select {
-	case qosConfig.notifications <- &np:
+	case qosConfig.Notifications <- &np:
 	default:
 		panic("We are overwhelmed")
 	}
 }
 
-func (qosConfig *QosConfiguration) dropPacket(rp *rpkt.RtrPkt) {
+func (qosConfig *QosConfiguration) dropPacket(rp qosconfload.RpktInterface) {
 	defer rp.Release()
 	//TODO: Remove later
-	// qosConfig.notifications <- &qosqueues.NPkt{}
+	// qosConfig.Notifications <- &qosqueues.NPkt{}
 	qosConfig.droppedPackets++
 	panic("Do not drop packets")
 

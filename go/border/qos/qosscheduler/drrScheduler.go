@@ -1,8 +1,8 @@
 package qosscheduler
 
 import (
+	qosconfload "github.com/scionproto/scion/go/border/qos/qosConfload"
 	"github.com/scionproto/scion/go/border/qos/qosqueues"
-	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/log"
 )
 
@@ -27,7 +27,7 @@ func (sched *deficitRoundRobinScheduler) Init(routerConfig qosqueues.InternalRou
 
 }
 
-func (sched *deficitRoundRobinScheduler) dequeue(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp *rpkt.RtrPkt), queueNo int) {
+func (sched *deficitRoundRobinScheduler) dequeue(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp qosconfload.RpktInterface), queueNo int) {
 
 	length := routerConfig.Queues[queueNo].GetLength()
 	var nopkts int = 64 * (routerConfig.Queues[queueNo].GetPriority() / sched.quantumSum)
@@ -44,7 +44,7 @@ func (sched *deficitRoundRobinScheduler) dequeue(routerConfig qosqueues.Internal
 	}
 }
 
-func (sched *deficitRoundRobinScheduler) Dequeuer(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp *rpkt.RtrPkt)) {
+func (sched *deficitRoundRobinScheduler) Dequeuer(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp qosconfload.RpktInterface)) {
 	if sched.totalLength == 0 {
 		panic("There are no queues to dequeue from. Please check that Init is called")
 	}

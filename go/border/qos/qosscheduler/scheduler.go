@@ -16,14 +16,14 @@
 package qosscheduler
 
 import (
+	qosconfload "github.com/scionproto/scion/go/border/qos/qosConfload"
 	"github.com/scionproto/scion/go/border/qos/qosqueues"
-	"github.com/scionproto/scion/go/border/rpkt"
 )
 
 type SchedulerInterface interface {
 	Init(routerConfig qosqueues.InternalRouterConfig)
-	Dequeuer(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp *rpkt.RtrPkt))
-	dequeue(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp *rpkt.RtrPkt), queueNo int)
+	Dequeuer(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp qosconfload.RpktInterface))
+	dequeue(routerConfig qosqueues.InternalRouterConfig, forwarder func(rp qosconfload.RpktInterface), queueNo int)
 	GetMessages() *chan bool
 }
 

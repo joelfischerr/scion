@@ -18,7 +18,8 @@ package qosqueues
 import (
 	"strings"
 
-	"github.com/scionproto/scion/go/border/rpkt"
+	qosconfload "github.com/scionproto/scion/go/border/qos/qosConfload"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -180,7 +181,7 @@ func getMatchFromRule(cr classRule, matchModeField int, matchRuleField string) (
 var matches = make([]InternalClassRule, 0)
 var returnRule InternalClassRule
 
-func GetRuleWithHashFor(config *InternalRouterConfig, rp *rpkt.RtrPkt) *InternalClassRule {
+func GetRuleWithHashFor(config *InternalRouterConfig, rp qosconfload.RpktInterface) *InternalClassRule {
 
 	srcAddr, _ := rp.SrcIA()
 	dstAddr, _ := rp.DstIA()
@@ -207,12 +208,12 @@ func GetRuleWithHashFor(config *InternalRouterConfig, rp *rpkt.RtrPkt) *Internal
 	return &returnRule
 }
 
-func GetQueueNumberWithHashFor(config *InternalRouterConfig, rp *rpkt.RtrPkt) int {
+func GetQueueNumberWithHashFor(config *InternalRouterConfig, rp qosconfload.RpktInterface) int {
 
 	return GetRuleWithHashFor(config, rp).QueueNumber
 }
 
-func getQueueNumberIterativeForInternal(config *InternalRouterConfig, rp *rpkt.RtrPkt) int {
+func getQueueNumberIterativeForInternal(config *InternalRouterConfig, rp qosconfload.RpktInterface) int {
 
 	queueNo := 0
 	matches := make([]InternalClassRule, 0)
@@ -235,7 +236,7 @@ func getQueueNumberIterativeForInternal(config *InternalRouterConfig, rp *rpkt.R
 	return queueNo
 }
 
-func getQueueNumberIterativeFor(legacyConfig *RouterConfig, rp *rpkt.RtrPkt) int {
+func getQueueNumberIterativeFor(legacyConfig *RouterConfig, rp qosconfload.RpktInterface) int {
 	queueNo := 0
 
 	matches := make([]classRule, 0)
@@ -257,7 +258,7 @@ func getQueueNumberIterativeFor(legacyConfig *RouterConfig, rp *rpkt.RtrPkt) int
 	return queueNo
 }
 
-func (cr *InternalClassRule) matchSingleRule(rp *rpkt.RtrPkt, matchRuleField *matchRule, getIA func() (addr.IA, error)) bool {
+func (cr *InternalClassRule) matchSingleRule(rp qosconfload.RpktInterface, matchRuleField *matchRule, getIA func() (addr.IA, error)) bool {
 
 	switch matchRuleField.matchMode {
 	case EXACT, ASONLY, ISDONLY, ANY:
@@ -278,7 +279,7 @@ func (cr *InternalClassRule) matchSingleRule(rp *rpkt.RtrPkt, matchRuleField *ma
 	return false
 }
 
-func (cr *InternalClassRule) matchInternalRule(rp *rpkt.RtrPkt) bool {
+func (cr *InternalClassRule) matchInternalRule(rp qosconfload.RpktInterface) bool {
 
 	sourceMatches := cr.matchSingleRule(rp, &cr.SourceAs, rp.SrcIA)
 	destinationMatches := cr.matchSingleRule(rp, &cr.DestinationAs, rp.DstIA)
@@ -288,7 +289,7 @@ func (cr *InternalClassRule) matchInternalRule(rp *rpkt.RtrPkt) bool {
 	return sourceMatches && destinationMatches && nextHopMatches
 }
 
-func (cr *classRule) matchRule(rp *rpkt.RtrPkt) bool {
+func (cr *classRule) matchRule(rp qosconfload.RpktInterface) bool {
 
 	match := true
 

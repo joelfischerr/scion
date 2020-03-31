@@ -23,6 +23,8 @@ import (
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/border/brconf"
+	"github.com/scionproto/scion/go/border/qos"
+	qosconfload "github.com/scionproto/scion/go/border/qos/qosConfload"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
@@ -49,6 +51,9 @@ type extSockOps interface {
 // to be included defines its own init function which adds SockOps to these maps.
 var registeredLocSockOps = map[brconf.SockType]locSockOps{}
 var registeredExtSockOps = map[brconf.SockType]extSockOps{}
+
+// TODO: this path should be configure in br.toml
+const configFileLocation = "/home/fischjoe/go/src/github.com/joelfischerr/scion/go/border/qos/sample-config.yaml"
 
 // setup creates the router's channels and map, sets up the rpkt package, and
 // sets up a new router context. This function can only be called once during startup.
@@ -87,6 +92,14 @@ func (r *Router) setup() error {
 	if err = r.clearCapabilities(); err != nil {
 		return err
 	}
+
+	fn := func(pkti qosconfload.RpktInterface) {
+		if pkt, ok := pkti.(*rpkt.RtrPkt); ok {
+			r.forwardPacket(pkt)
+		}
+	}
+	r.qosConfig, _ = qos.InitQueueing(conf.QosConf, fn)
+
 	cfg.Metrics.StartPrometheus()
 	return nil
 }

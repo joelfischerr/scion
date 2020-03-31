@@ -345,7 +345,7 @@ Things to do:
 
 // // }
 
-// // func (r *Router) forwardPacketTest(rp *rpkt.RtrPkt) {
+// // func (r *Router) forwardPacketTest(rp qosconfload.RpktInterface) {
 
 // // 	// defer rp.Release()
 

@@ -36,9 +36,6 @@ import (
 
 const processBufCnt = 128
 
-// TODO: this path should be configure in br.toml
-const configFileLocation = "/home/fischjoe/go/src/github.com/joelfischerr/scion/go/border/qos/sample-config.yaml"
-
 // Router struct
 type Router struct {
 	// Id is the SCION element ID, e.g. "br4-ff00:0:2f".
@@ -66,12 +63,6 @@ func NewRouter(id, confDir string) (*Router, error) {
 		return nil, err
 	}
 
-	//TODO: Figure out the actual path where the other config files are loaded --> this path should be configure in br.toml
-	// r.loadConfigFile("/home/vagrant/go/src/github.com/joelfischerr/scion/go/border/sample-config.yaml")
-	r.qosConfig, _ = qos.InitQueueing(configFileLocation, r.forwardPacket)
-
-	// log.Debug("We have the congestion warning configuration", "queue 0", r.qosConfig.GetQueue(0).GetCongestionWarning())
-
 	return r, err
 }
 
@@ -98,9 +89,10 @@ func (r *Router) ReloadConfig() error {
 	if err := r.setupCtxFromConfig(config); err != nil {
 		return common.NewBasicError("Unable to set up new context", err)
 	}
-	if r.qosConfig, err = qos.InitQueueing(configFileLocation, r.forwardPacket); err != nil {
-		return common.NewBasicError("Unable to load QoS config", err)
-	}
+	// TODO: Reload this
+	// if r.qosConfig, err = qos.InitQueueing(configFileLocation, r.forwardPacket); err != nil {
+	// 	return common.NewBasicError("Unable to load QoS config", err)
+	// }
 	return nil
 }
 

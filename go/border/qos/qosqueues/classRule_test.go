@@ -98,7 +98,7 @@ package qosqueues
 
 // 	benchmarks := []struct {
 // 		name          string
-// 		funct         func(r *Router, rp *rpkt.RtrPkt) int
+// 		funct         func(r *Router, rp qosconfload.RpktInterface) int
 // 		configuration string
 // 	}{
 // 		{"Naive implementation with string comparison 600 packets", getQueueNumberIterativeFor, "sample-config.yaml"},
