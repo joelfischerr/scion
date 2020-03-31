@@ -36,6 +36,7 @@ go_test(
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
+        "//go/border/qos:go_default_library",
         "//go/border/rpkt:go_default_library",
     ],
 )

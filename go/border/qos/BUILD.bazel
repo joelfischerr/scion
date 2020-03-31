@@ -2,7 +2,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["qosConfig.go"],
+    srcs = ["qos.go"],
     importpath = "github.com/scionproto/scion/go/border/qos",
     visibility = ["//visibility:public"],
     deps = [
@@ -16,7 +16,7 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["qosConfig_test.go"],
+    srcs = ["qos_test.go"],
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],
     deps = [
