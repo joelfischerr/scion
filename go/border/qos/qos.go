@@ -16,18 +16,18 @@
 package qos
 
 import (
-	"io/ioutil"
 	"math"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/scionproto/scion/go/border/qos/qosloadconfig"
 
 	"github.com/scionproto/scion/go/border/qos/qosqueues"
 	"github.com/scionproto/scion/go/border/qos/qosscheduler"
 	"github.com/scionproto/scion/go/border/rpkt"
 
 	"github.com/scionproto/scion/go/lib/log"
-	"gopkg.in/yaml.v2"
 )
 
 const maxNotificationCount = 512
@@ -37,7 +37,7 @@ type QosConfiguration struct {
 
 	config         qosqueues.InternalRouterConfig
 	schedul        qosscheduler.SchedulerInterface
-	legacyConfig   qosqueues.RouterConfig
+	legacyConfig   qosloadconfig.ExternalConfig
 	notifications  chan *qosqueues.NPkt
 	workerChannels [](chan *qosqueues.QPkt)
 	Forwarder      func(rp *rpkt.RtrPkt)
@@ -70,11 +70,11 @@ func (q *QosConfiguration) GetConfig() *qosqueues.InternalRouterConfig {
 	return &q.config
 }
 
-func (q *QosConfiguration) GetLegacyConfig() *qosqueues.RouterConfig {
+func (q *QosConfiguration) GetLegacyConfig() *qosloadconfig.ExternalConfig {
 	return &q.legacyConfig
 }
 
-func InitQueueing(location string, forwarder func(rp *rpkt.RtrPkt)) (QosConfiguration, error) {
+func InitQueueing(extConf qosloadconfig.ExternalConfig, forwarder func(rp *rpkt.RtrPkt)) (QosConfiguration, error) {
 
 	qConfig := QosConfiguration{}
 
@@ -83,7 +83,7 @@ func InitQueueing(location string, forwarder func(rp *rpkt.RtrPkt)) (QosConfigur
 	qConfig.worker = workerConfiguration{noWorkers, 64}
 
 	var err error
-	qConfig.legacyConfig, qConfig.config, err = loadConfigFile(location)
+	qConfig.config, err = convertExternalToInteral(extConf)
 
 	if err != nil {
 		log.Error("Loading config file failed", "error", err)
@@ -91,11 +91,6 @@ func InitQueueing(location string, forwarder func(rp *rpkt.RtrPkt)) (QosConfigur
 	}
 
 	qConfig.config.SourceRules, qConfig.config.DestinationRules = qosqueues.RulesToMap(qConfig.config.Rules)
-
-	log.Trace("We have queues: ", "numberOfQueues", len(qConfig.config.Queues))
-	log.Trace("We have rules: ", "numberOfRules", len(qConfig.config.Rules))
-	log.Trace("We have maps: ", "qConfig.config.SourceRules", qConfig.config.SourceRules)
-	log.Trace("We have maps: ", "qConfig.config.DestinationRules", qConfig.config.DestinationRules)
 
 	qConfig.notifications = make(chan *qosqueues.NPkt, maxNotificationCount)
 	qConfig.Forwarder = forwarder
@@ -110,11 +105,8 @@ func InitQueueing(location string, forwarder func(rp *rpkt.RtrPkt)) (QosConfigur
 	for i := range qConfig.workerChannels {
 		qConfig.workerChannels[i] = make(chan *qosqueues.QPkt, qConfig.worker.workLength)
 
-		//log.Trace("Start worker", "workerno", i)
 		go worker(&qConfig, &qConfig.workerChannels[i])
 	}
-
-	//log.Trace("Finish init queueing")
 
 	return qConfig, nil
 }
@@ -192,27 +184,15 @@ func (qosConfig *QosConfiguration) dropPacket(rp *rpkt.RtrPkt) {
 
 }
 
-func loadConfigFile(path string) (qosqueues.RouterConfig, qosqueues.InternalRouterConfig, error) {
+func convertExternalToInteral(extConf qosloadconfig.ExternalConfig) (qosqueues.InternalRouterConfig, error) {
 
 	var internalRules []qosqueues.InternalClassRule
 	var internalQueues []qosqueues.PacketQueueInterface
 
-	var rc qosqueues.RouterConfig
+	rc := extConf
 
-	// dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-	// //log.Trace("Current Path is", "path", dir)
-
-	yamlFile, err := ioutil.ReadFile(path)
-	if err != nil {
-		return qosqueues.RouterConfig{}, qosqueues.InternalRouterConfig{}, err
-	}
-	err = yaml.Unmarshal(yamlFile, &rc)
-	if err != nil {
-		return qosqueues.RouterConfig{}, qosqueues.InternalRouterConfig{}, err
-	}
-
-	for _, rule := range rc.Rules {
-		intRule, err := qosqueues.ConvClassRuleToInternal(rule)
+	for _, rule := range rc.ExternalRules {
+		intRule, err := qosqueues.ConvClassRuleToInternal2(rule)
 		if err != nil {
 			log.Error("Error reading config file", "error", err)
 		}
@@ -225,41 +205,28 @@ func loadConfigFile(path string) (qosqueues.RouterConfig, qosqueues.InternalRout
 	}
 
 	var intQue qosqueues.PacketQueue
-
-	for _, extQue := range rc.Queues {
+	for _, extQue := range rc.ExternalQueues {
 
 		muta := &sync.Mutex{}
 		mutb := &sync.Mutex{}
 
 		queueToUse := &qosqueues.PacketSliceQueue{}
 
-		//log.Trace("We have loaded rc.Queues", "rc.Queues", rc.Queues)
-		//log.Trace("We have gotten the queue", "externalQueue", extQue.CongWarning)
-		//log.Trace("We have gotten the queue", "externalQueue", extQue.Name)
 		intQue = convertExternalToInteralQueue(extQue)
-		//log.Trace("We have gotten the queue", "queue", intQue.CongWarning)
-		//log.Trace("We have gotten the queue", "queue", intQue.Name)
 		queueToUse.InitQueue(intQue, muta, mutb)
-		//log.Trace("We have gotten the queue", "channelPacketQueue", queueToUse.GetPacketQueue().CongWarning)
-		// log.Trace("We have gotten the queue", "channelPacketQueue", queueToUse.GetPacketQueue().Name)
 		internalQueues = append(internalQueues, queueToUse)
 	}
 
 	log.Trace("Loop over queues")
 	for _, iq := range internalQueues {
-
-		log.Trace("We have gotten the queue", "queue", iq.GetPacketQueue().CongWarning)
 		log.Trace("We have gotten the queue", "queue", iq.GetPacketQueue().Name)
-
 	}
 
-	// r.legacyConfig = rc
-	// r.config = qosqueues.InternalRouterConfig{Queues: internalQueues, Rules: internalRules}
+	return qosqueues.InternalRouterConfig{Queues: internalQueues, Rules: internalRules}, nil
 
-	return rc, qosqueues.InternalRouterConfig{Queues: internalQueues, Rules: internalRules}, nil
 }
 
-func convertExternalToInteralQueue(extQueue qosqueues.ExternalPacketQueue) qosqueues.PacketQueue {
+func convertExternalToInteralQueue(extQueue qosloadconfig.ExternalPacketQueue) qosqueues.PacketQueue {
 
 	pq := qosqueues.PacketQueue{
 		Name:         extQueue.Name,
@@ -269,11 +236,34 @@ func convertExternalToInteralQueue(extQueue qosqueues.ExternalPacketQueue) qosqu
 		PoliceRate:   convStringToNumber(extQueue.PoliceRate),
 		MaxLength:    extQueue.MaxLength,
 		Priority:     extQueue.Priority,
-		CongWarning:  extQueue.CongWarning,
-		Profile:      extQueue.Profile,
+		Profile:      convertActionProfiles(extQueue.Profile),
 	}
 
 	return pq
+}
+func convertActionProfiles(externalActionProfile []qosloadconfig.ActionProfile) []qosqueues.ActionProfile {
+
+	ret := make([]qosqueues.ActionProfile, 0)
+
+	for _, prof := range externalActionProfile {
+		ret = append(ret, convertActionProfile(prof))
+	}
+	return ret
+}
+
+func convertActionProfile(externalActionProfile qosloadconfig.ActionProfile) qosqueues.ActionProfile {
+
+	ap := qosqueues.ActionProfile{
+		FillLevel: externalActionProfile.FillLevel,
+		Prob:      externalActionProfile.Prob,
+		Action:    convertPoliceAction(externalActionProfile.Action),
+	}
+
+	return ap
+}
+
+func convertPoliceAction(externalPoliceAction qosloadconfig.PoliceAction) qosqueues.PoliceAction {
+	return qosqueues.PoliceAction(externalPoliceAction)
 }
 
 func convStringToNumber(bandwidthstring string) int {

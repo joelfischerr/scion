@@ -68,7 +68,8 @@ func NewRouter(id, confDir string) (*Router, error) {
 
 	//TODO: Figure out the actual path where the other config files are loaded --> this path should be configure in br.toml
 	// r.loadConfigFile("/home/vagrant/go/src/github.com/joelfischerr/scion/go/border/sample-config.yaml")
-	r.qosConfig, _ = qos.InitQueueing(configFileLocation, r.forwardPacket)
+	//TODO: make sure that this is actually executed
+	// r.qosConfig, _ = qos.InitQueueing(configFileLocation, r.forwardPacket)
 
 	// log.Debug("We have the congestion warning configuration", "queue 0", r.qosConfig.GetQueue(0).GetCongestionWarning())
 
@@ -97,9 +98,6 @@ func (r *Router) ReloadConfig() error {
 	}
 	if err := r.setupCtxFromConfig(config); err != nil {
 		return common.NewBasicError("Unable to set up new context", err)
-	}
-	if r.qosConfig, err = qos.InitQueueing(configFileLocation, r.forwardPacket); err != nil {
-		return common.NewBasicError("Unable to load QoS config", err)
 	}
 	return nil
 }
