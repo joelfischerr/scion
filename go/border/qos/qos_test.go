@@ -18,7 +18,7 @@ func TestForMarc(t *testing.T) {
 
 	fmt.Println("Hello test 2")
 
-	qosConfig, _ := InitQueueing(configFileLocation, nil)
+	qosConfig, _ := InitQos(configFileLocation, nil)
 
 	fmt.Println("Config is", qosConfig)
 
@@ -72,7 +72,7 @@ func BenchmarkQueueSinglePacket(b *testing.B) {
 	}
 	root.SetHandler(log15.Must.FileHandler(file.Name(), log15.LogfmtFormat()))
 
-	qosConfig, _ := InitQueueing(configFileLocation, forwardPacketByDrop)
+	qosConfig, _ := InitQos(configFileLocation, forwardPacketByDrop)
 	singlePkt := rpkt.PrepareRtrPacketWithStrings("1-ff00:0:110", "1-ff00:0:111", 1)
 
 	b.ResetTimer()
@@ -95,7 +95,7 @@ func TestQueueSinglePacket(t *testing.T) {
 	}
 	root.SetHandler(log15.Must.FileHandler(file.Name(), log15.LogfmtFormat()))
 
-	qosConfig, _ := InitQueueing(configFileLocation, forwardPacketByDrop)
+	qosConfig, _ := InitQos(configFileLocation, forwardPacketByDrop)
 	arr := getPackets(7 * 5 * 1000 * 1000) // To get to around 20 seconds on my machine which will give a decent profile
 
 	f, err := os.Create("sadJoelProfile.prof")

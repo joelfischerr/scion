@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/scionproto/scion/go/border/qos/qosloadconfig"
+	"github.com/scionproto/scion/go/border/qos/qosconf"
 
 	"github.com/scionproto/scion/go/border/qos/qosqueues"
 	"github.com/scionproto/scion/go/border/qos/qosscheduler"
@@ -37,7 +37,7 @@ type QosConfiguration struct {
 
 	config         qosqueues.InternalRouterConfig
 	schedul        qosscheduler.SchedulerInterface
-	legacyConfig   qosloadconfig.ExternalConfig
+	legacyConfig   qosconf.ExternalConfig
 	notifications  chan *qosqueues.NPkt
 	workerChannels [](chan *qosqueues.QPkt)
 	Forwarder      func(rp *rpkt.RtrPkt)
@@ -70,45 +70,66 @@ func (q *QosConfiguration) GetConfig() *qosqueues.InternalRouterConfig {
 	return &q.config
 }
 
-func (q *QosConfiguration) GetLegacyConfig() *qosloadconfig.ExternalConfig {
+func (q *QosConfiguration) GetLegacyConfig() *qosconf.ExternalConfig {
 	return &q.legacyConfig
 }
 
-func InitQueueing(extConf qosloadconfig.ExternalConfig, forwarder func(rp *rpkt.RtrPkt)) (QosConfiguration, error) {
+func InitQos(extConf qosconf.ExternalConfig, forwarder func(rp *rpkt.RtrPkt)) (QosConfiguration, error) {
 
 	qConfig := QosConfiguration{}
 
-	noWorkers := max(1, min(3, len(qConfig.config.Queues)))
-
-	qConfig.worker = workerConfiguration{noWorkers, 64}
-
 	var err error
-	qConfig.config, err = convertExternalToInteral(extConf)
-
-	if err != nil {
-		log.Error("Loading config file failed", "error", err)
-		panic("Loading config file failed")
+	if err = convertExternalToInternalConfig(&qConfig, extConf); err != nil {
+		log.Error("Initialising the classification data structures has failed", "error", err)
+	}
+	if err = initClassification(&qConfig); err != nil {
+		log.Error("Initialising the classification data structures has failed", "error", err)
+	}
+	if err = initScheduler(&qConfig, forwarder); err != nil {
+		log.Error("Initialising the scheduler has failed", "error", err)
+	}
+	if err = initWorkers(&qConfig); err != nil {
+		log.Error("Initialising the workers has failed", "error", err)
 	}
 
+	return qConfig, nil
+}
+
+func convertExternalToInternalConfig(qConfig *QosConfiguration, extConf qosconf.ExternalConfig) error {
+	var err error
+	qConfig.config, err = convertExternalToInteral(extConf)
+	qConfig.legacyConfig = extConf
+	return err
+}
+
+func initClassification(qConfig *QosConfiguration) error {
 	qConfig.config.SourceRules, qConfig.config.DestinationRules = qosqueues.RulesToMap(qConfig.config.Rules)
 
+	return nil
+}
+
+func initScheduler(qConfig *QosConfiguration, forwarder func(rp *rpkt.RtrPkt)) error {
 	qConfig.notifications = make(chan *qosqueues.NPkt, maxNotificationCount)
 	qConfig.Forwarder = forwarder
-
 	qConfig.schedul = &qosscheduler.RoundRobinScheduler{}
 	qConfig.schedul.Init(qConfig.config)
-
 	go qConfig.schedul.Dequeuer(qConfig.config, qConfig.Forwarder)
 
+	return nil
+}
+
+func initWorkers(qConfig *QosConfiguration) error {
+	noWorkers := max(1, min(3, len(qConfig.config.Queues)))
+	qConfig.worker = workerConfiguration{noWorkers, 64}
 	qConfig.workerChannels = make([]chan *qosqueues.QPkt, qConfig.worker.noWorker)
 
 	for i := range qConfig.workerChannels {
 		qConfig.workerChannels[i] = make(chan *qosqueues.QPkt, qConfig.worker.workLength)
 
-		go worker(&qConfig, &qConfig.workerChannels[i])
+		go worker(qConfig, &qConfig.workerChannels[i])
 	}
 
-	return qConfig, nil
+	return nil
 }
 
 func (qosConfig *QosConfiguration) QueuePacket(rp *rpkt.RtrPkt) {
@@ -184,7 +205,7 @@ func (qosConfig *QosConfiguration) dropPacket(rp *rpkt.RtrPkt) {
 
 }
 
-func convertExternalToInteral(extConf qosloadconfig.ExternalConfig) (qosqueues.InternalRouterConfig, error) {
+func convertExternalToInteral(extConf qosconf.ExternalConfig) (qosqueues.InternalRouterConfig, error) {
 
 	var internalRules []qosqueues.InternalClassRule
 	var internalQueues []qosqueues.PacketQueueInterface
@@ -226,7 +247,7 @@ func convertExternalToInteral(extConf qosloadconfig.ExternalConfig) (qosqueues.I
 
 }
 
-func convertExternalToInteralQueue(extQueue qosloadconfig.ExternalPacketQueue) qosqueues.PacketQueue {
+func convertExternalToInteralQueue(extQueue qosconf.ExternalPacketQueue) qosqueues.PacketQueue {
 
 	pq := qosqueues.PacketQueue{
 		Name:         extQueue.Name,
@@ -241,7 +262,7 @@ func convertExternalToInteralQueue(extQueue qosloadconfig.ExternalPacketQueue) q
 
 	return pq
 }
-func convertActionProfiles(externalActionProfile []qosloadconfig.ActionProfile) []qosqueues.ActionProfile {
+func convertActionProfiles(externalActionProfile []qosconf.ActionProfile) []qosqueues.ActionProfile {
 
 	ret := make([]qosqueues.ActionProfile, 0)
 
@@ -251,7 +272,7 @@ func convertActionProfiles(externalActionProfile []qosloadconfig.ActionProfile) 
 	return ret
 }
 
-func convertActionProfile(externalActionProfile qosloadconfig.ActionProfile) qosqueues.ActionProfile {
+func convertActionProfile(externalActionProfile qosconf.ActionProfile) qosqueues.ActionProfile {
 
 	ap := qosqueues.ActionProfile{
 		FillLevel: externalActionProfile.FillLevel,
@@ -262,7 +283,7 @@ func convertActionProfile(externalActionProfile qosloadconfig.ActionProfile) qos
 	return ap
 }
 
-func convertPoliceAction(externalPoliceAction qosloadconfig.PoliceAction) qosqueues.PoliceAction {
+func convertPoliceAction(externalPoliceAction qosconf.PoliceAction) qosqueues.PoliceAction {
 	return qosqueues.PoliceAction(externalPoliceAction)
 }
 

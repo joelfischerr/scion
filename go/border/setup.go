@@ -99,7 +99,7 @@ func (r *Router) setup() error {
 func (r *Router) initQosFromConfig(config *brconf.BRConf) error {
 
 	var err error
-	r.qosConfig, err = qos.InitQueueing(config.ExternalQosConfig, r.forwardPacket)
+	r.qosConfig, err = qos.InitQos(config.ExternalQosConfig, r.forwardPacket)
 
 	return err
 }

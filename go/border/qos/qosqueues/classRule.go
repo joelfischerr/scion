@@ -18,7 +18,7 @@ package qosqueues
 import (
 	"strings"
 
-	"github.com/scionproto/scion/go/border/qos/qosloadconfig"
+	"github.com/scionproto/scion/go/border/qos/qosconf"
 
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -73,7 +73,7 @@ const (
 	ANY matchMode = 4
 )
 
-func ConvClassRuleToInternal2(cr qosloadconfig.ExternalClassRule) (InternalClassRule, error) {
+func ConvClassRuleToInternal2(cr qosconf.ExternalClassRule) (InternalClassRule, error) {
 
 	sourceMatch, err := getMatchFromRule2(cr, cr.SourceMatchMode, cr.SourceAs)
 	if err != nil {
@@ -102,7 +102,7 @@ func ConvClassRuleToInternal2(cr qosloadconfig.ExternalClassRule) (InternalClass
 	return rule, nil
 }
 
-func getMatchFromRule2(cr qosloadconfig.ExternalClassRule, matchModeField int, matchRuleField string) (matchRule, error) {
+func getMatchFromRule2(cr qosconf.ExternalClassRule, matchModeField int, matchRuleField string) (matchRule, error) {
 	switch matchMode(matchModeField) {
 	case EXACT, ASONLY, ISDONLY, ANY:
 		IA, err := addr.IAFromString(matchRuleField)
@@ -133,7 +133,7 @@ func getMatchFromRule2(cr qosloadconfig.ExternalClassRule, matchModeField int, m
 	return matchRule{}, common.NewBasicError("Invalid matchMode declared", nil, "matchMode", matchModeField)
 }
 
-func ConvClassRuleToInternal(cr qosloadconfig.ExternalClassRule) (InternalClassRule, error) {
+func ConvClassRuleToInternal(cr qosconf.ExternalClassRule) (InternalClassRule, error) {
 
 	sourceMatch, err := getMatchFromRule(cr, cr.SourceMatchMode, cr.SourceAs)
 	if err != nil {
@@ -204,7 +204,7 @@ func RulesToMap(crs []InternalClassRule) (map[addr.IA][]*InternalClassRule, map[
 
 }
 
-func getMatchFromRule(cr qosloadconfig.ExternalClassRule, matchModeField int, matchRuleField string) (matchRule, error) {
+func getMatchFromRule(cr qosconf.ExternalClassRule, matchModeField int, matchRuleField string) (matchRule, error) {
 	switch matchMode(matchModeField) {
 	case EXACT, ASONLY, ISDONLY, ANY:
 		IA, err := addr.IAFromString(matchRuleField)
@@ -296,10 +296,10 @@ func getQueueNumberIterativeForInternal(config *InternalRouterConfig, rp *rpkt.R
 	return queueNo
 }
 
-func getQueueNumberIterativeFor(legacyConfig *qosloadconfig.ExternalConfig, rp *rpkt.RtrPkt) int {
+func getQueueNumberIterativeFor(legacyConfig *qosconf.ExternalConfig, rp *rpkt.RtrPkt) int {
 	queueNo := 0
 
-	matches := make([]qosloadconfig.ExternalClassRule, 0)
+	matches := make([]qosconf.ExternalClassRule, 0)
 
 	for _, cr := range legacyConfig.ExternalRules {
 		if matchRuleFromConfig(&cr, rp) {
@@ -347,7 +347,7 @@ func (cr *InternalClassRule) matchInternalRule(rp *rpkt.RtrPkt) bool {
 	return sourceMatches && destinationMatches
 }
 
-func matchRuleFromConfig(cr *qosloadconfig.ExternalClassRule, rp *rpkt.RtrPkt) bool {
+func matchRuleFromConfig(cr *qosconf.ExternalClassRule, rp *rpkt.RtrPkt) bool {
 
 	match := true
 

@@ -25,7 +25,6 @@ type tokenBucket struct {
 	tokens       int // One token is 1 B
 	lastRefill   time.Time
 	mutex        *sync.Mutex
-	CurrBW       uint64
 }
 
 func (tb *tokenBucket) Init(maxBandwidth int) {
@@ -35,12 +34,7 @@ func (tb *tokenBucket) Init(maxBandwidth int) {
 	tb.mutex = &sync.Mutex{}
 }
 
-// TODO: This uses a lot of resources on the dataplane. Put this onto a separate thread with a ticket updating all tockenBuckets.
-// Only call this if you have a lock on tb!
 func (tb *tokenBucket) refill() {
-
-	// tb.mutex.Lock()
-	// defer tb.mutex.Unlock()
 
 	now := time.Now()
 

@@ -34,7 +34,7 @@ func TestRulesWithPriority(t *testing.T) {
 	}
 
 	for k, tab := range tables {
-		qosConfig, _ := qos.InitQueueing(tab.configFile, forwardPacketByDrop)
+		qosConfig, _ := qos.InitQos(tab.configFile, forwardPacketByDrop)
 		pkt := rpkt.PrepareRtrPacketWithStrings(tab.srcIA, tab.dstIA, 1)
 
 		queueNo := qosqueues.GetQueueNumberWithHashFor(qosConfig.GetConfig(), pkt)

@@ -20,7 +20,7 @@ package brconf
 import (
 	"path/filepath"
 
-	"github.com/scionproto/scion/go/border/qos/qosloadconfig"
+	"github.com/scionproto/scion/go/border/qos/qosconf"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/keyconf"
@@ -40,7 +40,7 @@ type BRConf struct {
 	// MasterKeys holds the local AS master keys.
 	MasterKeys keyconf.Master
 	// QosConfig is the configuration loaded from the config file
-	ExternalQosConfig qosloadconfig.ExternalConfig
+	ExternalQosConfig qosconf.ExternalConfig
 	// Dir is the configuration directory.
 	Dir string
 }
@@ -77,7 +77,7 @@ func WithNewTopo(id string, topo topology.Topology, oldConf *BRConf) (*BRConf, e
 
 func (cfg *BRConf) loadQos() error {
 	qosPath := filepath.Join(cfg.Dir, "qosConfig.yaml")
-	qConfig, err := qosloadconfig.LoadConfig(qosPath)
+	qConfig, err := qosconf.LoadConfig(qosPath)
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (cfg *BRConf) loadQos() error {
 	return nil
 }
 
-func (cfg *BRConf) initQos(qconf qosloadconfig.ExternalConfig) error {
+func (cfg *BRConf) initQos(qconf qosconf.ExternalConfig) error {
 	// Not sure how much initialisation we can do here. Skip it for now.
 	cfg.ExternalQosConfig = qconf
 	return nil

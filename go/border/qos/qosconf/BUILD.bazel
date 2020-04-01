@@ -2,8 +2,12 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["qosloadConfig.go"],
-    importpath = "github.com/scionproto/scion/go/border/qos/qosloadconfig",
+    srcs = [
+        "qosconf.go",
+        "config_testing.go",
+        "config_regular.go",
+    ],
+    importpath = "github.com/scionproto/scion/go/border/qos/qosconf",
     visibility = ["//visibility:public"],
     deps = ["@in_gopkg_yaml_v2//:go_default_library"],
 )
