@@ -73,66 +73,6 @@ const (
 	ANY matchMode = 4
 )
 
-func ConvClassRuleToInternal2(cr qosconf.ExternalClassRule) (InternalClassRule, error) {
-
-	sourceMatch, err := getMatchFromRule2(cr, cr.SourceMatchMode, cr.SourceAs)
-	if err != nil {
-		return InternalClassRule{}, err
-	}
-	destinationMatch, err := getMatchFromRule2(cr, cr.DestinationMatchMode, cr.DestinationAs)
-	if err != nil {
-		return InternalClassRule{}, err
-	}
-
-	l4t := make([]common.L4ProtocolType, 0)
-
-	for _, l4pt := range cr.L4Type {
-		l4t = append(l4t, common.L4ProtocolType(l4pt))
-
-	}
-
-	rule := InternalClassRule{
-		Name:          cr.Name,
-		Priority:      cr.Priority,
-		SourceAs:      sourceMatch,
-		DestinationAs: destinationMatch,
-		L4Type:        l4t,
-		QueueNumber:   cr.QueueNumber}
-
-	return rule, nil
-}
-
-func getMatchFromRule2(cr qosconf.ExternalClassRule, matchModeField int, matchRuleField string) (matchRule, error) {
-	switch matchMode(matchModeField) {
-	case EXACT, ASONLY, ISDONLY, ANY:
-		IA, err := addr.IAFromString(matchRuleField)
-		if err != nil {
-			return matchRule{}, err
-		}
-		m := matchRule{IA: IA, lowLim: addr.IA{}, upLim: addr.IA{}, matchMode: matchMode(matchModeField)}
-		return m, nil
-	case RANGE:
-		if matchMode(matchModeField) == RANGE {
-			parts := strings.Split(matchRuleField, "||")
-			if len(parts) != 2 {
-				return matchRule{}, common.NewBasicError("Invalid Class", nil, "raw", matchModeField)
-			}
-			lowLim, err := addr.IAFromString(parts[1])
-			if err != nil {
-				return matchRule{}, err
-			}
-			upLim, err := addr.IAFromString(parts[1])
-			if err != nil {
-				return matchRule{}, err
-			}
-			m := matchRule{IA: addr.IA{}, lowLim: lowLim, upLim: upLim, matchMode: matchMode(matchModeField)}
-			return m, nil
-		}
-	}
-
-	return matchRule{}, common.NewBasicError("Invalid matchMode declared", nil, "matchMode", matchModeField)
-}
-
 func ConvClassRuleToInternal(cr qosconf.ExternalClassRule) (InternalClassRule, error) {
 
 	sourceMatch, err := getMatchFromRule(cr, cr.SourceMatchMode, cr.SourceAs)

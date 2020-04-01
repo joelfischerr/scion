@@ -213,7 +213,7 @@ func convertExternalToInteral(extConf qosconf.ExternalConfig) (qosqueues.Interna
 	rc := extConf
 
 	for _, rule := range rc.ExternalRules {
-		intRule, err := qosqueues.ConvClassRuleToInternal2(rule)
+		intRule, err := qosqueues.ConvClassRuleToInternal(rule)
 		if err != nil {
 			log.Error("Error reading config file", "error", err)
 		}

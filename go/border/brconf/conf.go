@@ -77,19 +77,11 @@ func WithNewTopo(id string, topo topology.Topology, oldConf *BRConf) (*BRConf, e
 
 func (cfg *BRConf) loadQos() error {
 	qosPath := filepath.Join(cfg.Dir, "qosConfig.yaml")
-	qConfig, err := qosconf.LoadConfig(qosPath)
+	var err error
+	cfg.ExternalQosConfig, err = qosconf.LoadConfig(qosPath)
 	if err != nil {
 		return err
 	}
-	if err := cfg.initQos(qConfig); err != nil {
-		return common.NewBasicError("Unable to initialize topo", err, "path", qosPath)
-	}
-	return nil
-}
-
-func (cfg *BRConf) initQos(qconf qosconf.ExternalConfig) error {
-	// Not sure how much initialisation we can do here. Skip it for now.
-	cfg.ExternalQosConfig = qconf
 	return nil
 }
 

@@ -78,17 +78,6 @@ type ActionProfile struct {
 	Action    PoliceAction `yaml:"action"`
 }
 
-// type ExternalPacketQueue struct {
-// 	Name         string          `yaml:"name"`
-// 	ID           int             `yaml:"id"`
-// 	MinBandwidth int             `yaml:"CIR"`
-// 	MaxBandWidth int             `yaml:"PIR"`
-// 	PoliceRate   string          `yaml:"policeRate"`
-// 	MaxLength    int             `yaml:"maxLength"`
-// 	Priority     int             `yaml:"priority"`
-// 	Profile      []ActionProfile `yaml:"profile"`
-// }
-
 type PacketQueue struct {
 	Name         string
 	ID           int
