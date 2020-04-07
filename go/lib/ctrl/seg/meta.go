@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+<<<<<<< HEAD:go/lib/ctrl/seg/meta.go
 package seg
 
 import (
@@ -24,6 +25,20 @@ import (
 type Meta struct {
 	Type    proto.PathSegType
 	Segment *PathSegment `capnp:"pathSeg"`
+=======
+package scheduler
+
+import (
+	"github.com/scionproto/scion/go/border/qos/queues"
+	"github.com/scionproto/scion/go/border/rpkt"
+)
+
+type SchedulerInterface interface {
+	Init(routerConfig queues.InternalRouterConfig)
+	Dequeuer(routerConfig queues.InternalRouterConfig, forwarder func(rp *rpkt.RtrPkt))
+	dequeue(routerConfig queues.InternalRouterConfig, forwarder func(rp *rpkt.RtrPkt), queueNo int)
+	GetMessages() *chan bool
+>>>>>>> refactor.:go/border/qos/scheduler/scheduler.go
 }
 
 func NewMeta(s *PathSegment, t proto.PathSegType) *Meta {
