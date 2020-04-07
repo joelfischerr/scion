@@ -284,3 +284,29 @@ func CompareIAs(a, b addr.IA) int {
 		}
 	}
 }
+
+func compareNumbers(a, b int64) int {
+	if a*b == 0 || a == b {
+		return 0
+	} else if a < b {
+		return -1
+	}
+	return +1
+}
+
+// CompareIAs returns -1 if a < b, 0 if a == b, and +1 if a > b
+func CompareIAs(a, b addr.IA) int {
+	if a.I*b.I == 0 {
+		return compareNumbers(int64(a.A), int64(b.A))
+	} else if a.A*b.A == 0 {
+		return compareNumbers(int64(a.I), int64(b.I))
+	} else {
+		isd := compareNumbers(int64(a.I), int64(b.I))
+		switch isd {
+		case 0:
+			return compareNumbers(int64(a.A), int64(b.A))
+		default:
+			return isd
+		}
+	}
+}
