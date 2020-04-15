@@ -78,6 +78,7 @@ func (sched *MinMaxDeficitRoundRobinScheduler) Dequeuer(routerConfig queues.Inte
 	}
 }
 
+
 func (sched *MinMaxDeficitRoundRobinScheduler) LogUpdate(
 	routerConfig queues.InternalRouterConfig) {
 
@@ -107,7 +108,6 @@ func (sched *MinMaxDeficitRoundRobinScheduler) LogUpdate(
 		t0 = time.Now()
 		iterations = 0
 	}
-
 }
 
 func (sched *MinMaxDeficitRoundRobinScheduler) Dequeue(queue queues.PacketQueueInterface,

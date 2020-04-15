@@ -276,12 +276,14 @@ func (sched *RateRoundRobinScheduler) takeSurplus(amount int) bool {
 	return false
 }
 
+
 func (sched *RateRoundRobinScheduler) payIntoSurplus(queue queues.PacketQueueInterface,
 	queueNo int, payment int) {
 
 	a := sched.schedulerSurplus.Surplus + payment
 	b := sched.schedulerSurplus.MaxSurplus
 	sched.schedulerSurplus.Surplus = min(a, b)
+
 	sched.schedulerSurplus.Payments[queueNo] = sched.schedulerSurplus.Surplus
 }
 
