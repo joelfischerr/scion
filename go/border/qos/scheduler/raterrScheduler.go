@@ -129,11 +129,16 @@ func (sched *RateRoundRobinScheduler) LogUpdate(routerConfig queues.InternalRout
 				"cirTokens", sched.logger.cirTokens,
 				"pirTokens", sched.logger.pirTokens,
 				"payedIntoSurplus", sched.logger.payedIntoSurplus)
-			queue0 := float64(sched.logger.tokensUsed[0]+sched.logger.forceTake[0]) / 5.0 / 1000000.0 * 8.0
-			queue1 := float64(sched.logger.tokensUsed[1]+sched.logger.forceTake[1]) / 5.0 / 1000000.0 * 8.0
-			queue2 := float64(sched.logger.tokensUsed[2]+sched.logger.forceTake[2]) / 5.0 / 1000000.0 * 8.0
-			queue3 := float64(sched.logger.tokensUsed[3]+sched.logger.forceTake[3]) / 5.0 / 1000000.0 * 8.0
-			queue4 := float64(sched.logger.tokensUsed[4]+sched.logger.forceTake[4]) / 5.0 / 1000000.0 * 8.0
+			amount0 := float64(sched.logger.tokensUsed[0] + sched.logger.forceTake[0])
+			amount1 := float64(sched.logger.tokensUsed[1] + sched.logger.forceTake[1])
+			amount2 := float64(sched.logger.tokensUsed[2] + sched.logger.forceTake[2])
+			amount3 := float64(sched.logger.tokensUsed[3] + sched.logger.forceTake[3])
+			amount4 := float64(sched.logger.tokensUsed[4] + sched.logger.forceTake[4])
+			queue0 := float64(amount0) / 5.0 / 1000000.0 * 8.0
+			queue1 := float64(amount1) / 5.0 / 1000000.0 * 8.0
+			queue2 := float64(amount2) / 5.0 / 1000000.0 * 8.0
+			queue3 := float64(amount3) / 5.0 / 1000000.0 * 8.0
+			queue4 := float64(amount4) / 5.0 / 1000000.0 * 8.0
 			overall := float64(sched.logger.overallTokensUsed) / 5.0 / 1000000.0
 			log.Debug("STAT",
 				"overall", overall,
