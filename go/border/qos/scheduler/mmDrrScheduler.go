@@ -44,6 +44,8 @@ func (sched *MinMaxDeficitRoundRobinScheduler) Init(routerConfig queues.Internal
 
 	sched.logger = initLogger(sched.totalLength)
 
+	sched.messages = make(chan bool)
+
 	sched.schedulerSurplusMtx = &sync.Mutex{}
 	sched.schedulerSurplus = surplus{0, make([]int, sched.totalLength), -1}
 
@@ -65,7 +67,7 @@ func (sched *MinMaxDeficitRoundRobinScheduler) Dequeuer(routerConfig queues.Inte
 	if sched.totalLength == 0 {
 		panic("There are no queues to dequeue from. Please check that Init is called")
 	}
-	for {
+	for <-sched.messages {
 		sleepDuration := time.Duration(time.Duration(sched.sleepDuration) * time.Microsecond)
 		t0 := time.Now()
 		for i := 0; i < sched.totalLength; i++ {
