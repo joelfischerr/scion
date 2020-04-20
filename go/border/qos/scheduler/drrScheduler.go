@@ -1,17 +1,3 @@
-// Copyright 2020 ETH Zurich
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package scheduler
 
 import (
@@ -41,6 +27,8 @@ func (sched *DeficitRoundRobinScheduler) Init(routerConfig queues.InternalRouter
 
 	sched.quantumSum = 0
 	sched.totalLength = len(routerConfig.Queues)
+
+	sched.messages = make(chan bool)
 
 	sched.logger = initLogger(sched.totalLength)
 
@@ -89,7 +77,7 @@ func (sched *DeficitRoundRobinScheduler) Dequeuer(routerConfig queues.InternalRo
 		panic("There are no queues to dequeue from. Please check that Init is called")
 	}
 	sleepDuration := time.Duration(time.Duration(sched.sleepDuration) * time.Microsecond)
-	for {
+	for <-sched.messages {
 		t0 := time.Now()
 		sched.totalQueueLength = 0
 		for i := 0; i < sched.totalLength; i++ {
