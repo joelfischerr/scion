@@ -15,6 +15,7 @@
 package qos
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -59,8 +60,8 @@ func (q *QosConfiguration) GetQueues() *[]queues.PacketQueueInterface {
 	return &q.config.Queues
 }
 
-func (q *QosConfiguration) GetQueue(ind int) *queues.PacketQueueInterface {
-	return &q.config.Queues[ind]
+func (q *QosConfiguration) GetQueue(ind int) queues.PacketQueueInterface {
+	return q.config.Queues[ind]
 }
 
 func (q *QosConfiguration) GetConfig() *queues.InternalRouterConfig {
@@ -69,6 +70,10 @@ func (q *QosConfiguration) GetConfig() *queues.InternalRouterConfig {
 
 func (q *QosConfiguration) GetLegacyConfig() *conf.ExternalConfig {
 	return &q.legacyConfig
+}
+
+func (q *QosConfiguration) GetNotification() chan *queues.NPkt {
+	return q.notifications
 }
 
 // SetAndInitSchedul is necessary to set up
@@ -152,11 +157,11 @@ func (qosConfig *QosConfiguration) QueuePacket(rp *rpkt.RtrPkt) {
 
 	qp := queues.QPkt{Rp: rp, QueueNo: queueNo}
 
+	qosConfig.SendToWorker(queueNo, &qp)
 	select {
 	case *qosConfig.schedul.GetMessages() <- true:
 	default:
 	}
-	qosConfig.SendToWorker(queueNo, &qp)
 }
 
 func worker(qosConfig *QosConfiguration, workChannel *chan *queues.QPkt) {
@@ -176,6 +181,7 @@ func putOnQueue(qosConfig *QosConfiguration, queueNo int, qp *queues.QPkt) {
 	switch act {
 	case conf.PASS:
 		qosConfig.config.Queues[queueNo].Enqueue(qp)
+		qosConfig.SendNotification(qp) //MS: Used for testing
 	case conf.NOTIFY:
 		qosConfig.config.Queues[queueNo].Enqueue(qp)
 		qosConfig.SendNotification(qp)
@@ -189,8 +195,30 @@ func putOnQueue(qosConfig *QosConfiguration, queueNo int, qp *queues.QPkt) {
 	}
 }
 
-// SendNotification might be needed for the part of @stygerma
+// SendNotification might be needed for the part of @stygerma //IMP:
 func (qosConfig *QosConfiguration) SendNotification(qp *queues.QPkt) {
+	qp.Rp.RefInc(1) //should avoid the packet being dropped before we can create the scmp notification
+
+	rc := queues.RegularClassRule{}
+	config := qosConfig.GetConfig()
+
+	rule := rc.GetRuleForPacket(config, qp.Rp)
+	np := queues.NPkt{Rule: rule, Qpkt: qp}
+	log.Debug("Send notification method in router")
+
+	queueNo := 0
+	if rule != nil {
+		queueNo = rule.QueueNumber
+	}
+
+	restriction := qosConfig.config.Queues[queueNo].GetCongestionWarning().InformationContent
+	fmt.Printf("restrictions on information content restriction %v", restriction)
+	np.Qpkt.Rp.RefInc(1) //should avoid the packet being dropped before we can create the scmp notification
+
+	select {
+	case qosConfig.notifications <- &np:
+	default:
+	}
 }
 
 func (qosConfig *QosConfiguration) dropPacket(qp *queues.QPkt) {
