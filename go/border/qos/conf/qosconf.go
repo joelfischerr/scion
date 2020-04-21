@@ -82,5 +82,9 @@ func LoadConfig(path string) (ExternalConfig, error) {
 		log.Error("Loading the config file has failed", "error", err)
 		return ExternalConfig{}, err
 	}
+
+	log.Info("Config File is", "ec", ec)
+
 	return ec, nil
+
 }

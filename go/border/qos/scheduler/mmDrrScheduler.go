@@ -6,6 +6,7 @@ import (
 
 	"github.com/scionproto/scion/go/border/qos/queues"
 	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 // This is also a deficit round robin dequeuer. But instead of the priority field it
@@ -43,6 +44,8 @@ func (sched *MinMaxDeficitRoundRobinScheduler) Init(routerConfig queues.Internal
 
 	sched.logger = initLogger(sched.totalLength)
 
+	sched.messages = make(chan bool)
+
 	sched.schedulerSurplusMtx = &sync.Mutex{}
 	sched.schedulerSurplus = surplus{0, make([]int, sched.totalLength), -1}
 
@@ -64,7 +67,7 @@ func (sched *MinMaxDeficitRoundRobinScheduler) Dequeuer(routerConfig queues.Inte
 	if sched.totalLength == 0 {
 		panic("There are no queues to dequeue from. Please check that Init is called")
 	}
-	for {
+	for <-sched.messages {
 		sleepDuration := time.Duration(time.Duration(sched.sleepDuration) * time.Microsecond)
 		t0 := time.Now()
 		for i := 0; i < sched.totalLength; i++ {
@@ -91,12 +94,12 @@ func (sched *MinMaxDeficitRoundRobinScheduler) LogUpdate(
 		for i := 0; i < sched.totalLength; i++ {
 			queLen[i] = routerConfig.Queues[i].GetLength()
 		}
-		// log.Debug("STAT",
-		// 	"iterations", sched.logger.iterations,
-		// 	"incoming", sched.logger.incoming,
-		// 	"deqLastRound", sched.logger.lastRound,
-		// 	"deqAttempted", sched.logger.attempted,
-		// 	"deqTotal", sched.logger.total, "currQueueLen", queLen)
+		log.Debug("STAT",
+			"iterations", sched.logger.iterations,
+			"incoming", sched.logger.incoming,
+			"deqLastRound", sched.logger.lastRound,
+			"deqAttempted", sched.logger.attempted,
+			"deqTotal", sched.logger.total, "currQueueLen", queLen)
 		for i := 0; i < len(sched.logger.lastRound); i++ {
 			sched.logger.lastRound[i] = 0
 		}

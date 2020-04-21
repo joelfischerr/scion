@@ -34,6 +34,7 @@ var _ SchedulerInterface = (*RoundRobinScheduler)(nil)
 
 func (sched *RoundRobinScheduler) Init(routerConfig queues.InternalRouterConfig) {
 	sched.totalLength = len(routerConfig.Queues)
+
 	sched.messages = make(chan bool)
 
 	sched.tb.Init(routerConfig.Scheduler.Bandwidth)
@@ -66,7 +67,7 @@ func (sched *RoundRobinScheduler) Dequeuer(routerConfig queues.InternalRouterCon
 		panic("There are no queues to dequeue from. Please check that Init is called")
 	}
 	sleepDuration := time.Duration(time.Duration(sched.sleepDuration) * time.Microsecond)
-	for {
+	for <-sched.messages {
 		t0 := time.Now()
 		for i := 0; i < sched.totalLength; i++ {
 			sched.Dequeue(routerConfig.Queues[i], forwarder, i)

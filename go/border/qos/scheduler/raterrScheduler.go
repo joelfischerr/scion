@@ -40,6 +40,8 @@ func (sched *RateRoundRobinScheduler) Init(routerConfig queues.InternalRouterCon
 
 	sched.logger = initLogger(sched.totalLength)
 
+	sched.messages = make(chan bool)
+
 	sched.schedulerSurplus = surplus{0, make([]int, sched.totalLength), -1}
 	sched.schedulerSurplusMtx = &sync.Mutex{}
 
@@ -81,7 +83,7 @@ func (sched *RateRoundRobinScheduler) Dequeuer(routerConfig queues.InternalRoute
 		panic("There are no queues to dequeue from. Please check that Init is called")
 	}
 	sleepDuration := time.Duration(time.Duration(sched.sleepDuration) * time.Microsecond)
-	for {
+	for <-sched.messages {
 		t0 := time.Now()
 		for i := 0; i < sched.totalLength; i++ {
 			sched.Dequeue(routerConfig.Queues[i], forwarder, i)
@@ -106,48 +108,48 @@ func (sched *RateRoundRobinScheduler) LogUpdate(routerConfig queues.InternalRout
 		for i := 0; i < sched.totalLength; i++ {
 			queLen[i] = routerConfig.Queues[i].GetLength()
 		}
-		// log.Debug("STAT", "iterations", sched.logger.iterations,
-		// 	"incoming", sched.logger.incoming,
-		// 	"deqLastRound", sched.logger.lastRound,
-		// 	"deqAttempted", sched.logger.attempted,
-		// 	"deqTotal", sched.logger.total,
-		// 	"currQueueLen", queLen,
-		// 	"surplus", sched.schedulerSurplus.Surplus)
+		log.Debug("STAT", "iterations", sched.logger.iterations,
+			"incoming", sched.logger.incoming,
+			"deqLastRound", sched.logger.lastRound,
+			"deqAttempted", sched.logger.attempted,
+			"deqTotal", sched.logger.total,
+			"currQueueLen", queLen,
+			"surplus", sched.schedulerSurplus.Surplus)
 
 		if len(sched.cirBuckets) > 3 {
-			// log.Debug("STAT Available cirTokens",
-			// 	"1", sched.cirBuckets[1].GetAvailable(),
-			// 	"2", sched.cirBuckets[2].GetAvailable(),
-			// 	"3", sched.cirBuckets[3].GetAvailable())
-			// log.Debug("STAT Available pirTokens",
-			// 	"1", sched.pirBuckets[1].GetAvailable(),
-			// 	"2", sched.pirBuckets[2].GetAvailable(),
-			// 	"3", sched.pirBuckets[3].GetAvailable())
-			// log.Debug("STAT",
-			// 	"tokensUsed", sched.logger.tokensUsed,
-			// 	"forceTake", sched.logger.forceTake,
-			// 	"cirTokens", sched.logger.cirTokens,
-			// 	"pirTokens", sched.logger.pirTokens,
-			// 	"payedIntoSurplus", sched.logger.payedIntoSurplus)
-			// amount0 := float64(sched.logger.tokensUsed[0] + sched.logger.forceTake[0])
-			// amount1 := float64(sched.logger.tokensUsed[1] + sched.logger.forceTake[1])
-			// amount2 := float64(sched.logger.tokensUsed[2] + sched.logger.forceTake[2])
-			// amount3 := float64(sched.logger.tokensUsed[3] + sched.logger.forceTake[3])
-			// amount4 := float64(sched.logger.tokensUsed[4] + sched.logger.forceTake[4])
-			// queue0 := float64(amount0) / 5.0 / 1000000.0 * 8.0
-			// queue1 := float64(amount1) / 5.0 / 1000000.0 * 8.0
-			// queue2 := float64(amount2) / 5.0 / 1000000.0 * 8.0
-			// queue3 := float64(amount3) / 5.0 / 1000000.0 * 8.0
-			// queue4 := float64(amount4) / 5.0 / 1000000.0 * 8.0
-			// overall := float64(sched.logger.overallTokensUsed) / 5.0 / 1000000.0
-			// log.Debug("STAT",
-			// 	"overall", overall,
-			// 	"maxOverall", 2,
-			// 	"0", queue0,
-			// 	"1", queue1,
-			// 	"2", queue2,
-			// 	"3", queue3,
-			// 	"4", queue4)
+			log.Debug("STAT Available cirTokens",
+				"1", sched.cirBuckets[1].GetAvailable(),
+				"2", sched.cirBuckets[2].GetAvailable(),
+				"3", sched.cirBuckets[3].GetAvailable())
+			log.Debug("STAT Available pirTokens",
+				"1", sched.pirBuckets[1].GetAvailable(),
+				"2", sched.pirBuckets[2].GetAvailable(),
+				"3", sched.pirBuckets[3].GetAvailable())
+			log.Debug("STAT",
+				"tokensUsed", sched.logger.tokensUsed,
+				"forceTake", sched.logger.forceTake,
+				"cirTokens", sched.logger.cirTokens,
+				"pirTokens", sched.logger.pirTokens,
+				"payedIntoSurplus", sched.logger.payedIntoSurplus)
+			amount0 := float64(sched.logger.tokensUsed[0] + sched.logger.forceTake[0])
+			amount1 := float64(sched.logger.tokensUsed[1] + sched.logger.forceTake[1])
+			amount2 := float64(sched.logger.tokensUsed[2] + sched.logger.forceTake[2])
+			amount3 := float64(sched.logger.tokensUsed[3] + sched.logger.forceTake[3])
+			amount4 := float64(sched.logger.tokensUsed[4] + sched.logger.forceTake[4])
+			queue0 := float64(amount0) / 5.0 / 1000000.0 * 8.0
+			queue1 := float64(amount1) / 5.0 / 1000000.0 * 8.0
+			queue2 := float64(amount2) / 5.0 / 1000000.0 * 8.0
+			queue3 := float64(amount3) / 5.0 / 1000000.0 * 8.0
+			queue4 := float64(amount4) / 5.0 / 1000000.0 * 8.0
+			overall := float64(sched.logger.overallTokensUsed) / 5.0 / 1000000.0
+			log.Debug("STAT",
+				"overall", overall,
+				"maxOverall", 2,
+				"0", queue0,
+				"1", queue1,
+				"2", queue2,
+				"3", queue3,
+				"4", queue4)
 
 		}
 		for i := 0; i < len(sched.logger.lastRound); i++ {
@@ -182,9 +184,10 @@ func (sched *RateRoundRobinScheduler) LogUpdate(routerConfig queues.InternalRout
 
 }
 
+var pktLen int
+
 func (sched *RateRoundRobinScheduler) Dequeue(queue queues.PacketQueueInterface,
 	forwarder func(rp *rpkt.RtrPkt), queueNo int) {
-	// no := queue.GetMinBandwidth()
 	no := 5
 	sched.logger.attempted[queueNo] += no
 	sched.dequeuePackets(queue, no, forwarder, queueNo)
@@ -204,9 +207,14 @@ func (sched *RateRoundRobinScheduler) dequeuePackets(queue queues.PacketQueueInt
 			break
 		}
 		j++
-		if !(sched.takeFromBuckets(qp.Rp.Bytes().Len(), queueNo)) {
-			sched.cirBuckets[queueNo].ForceTake(qp.Rp.Bytes().Len())
-			sched.pirBuckets[queueNo].ForceTake(qp.Rp.Bytes().Len())
+
+		pktLen = len(qp.Rp.Raw)
+
+		if !(sched.takeFromBuckets(pktLen, queueNo)) {
+
+			sched.cirBuckets[queueNo].ForceTake(pktLen)
+
+			sched.pirBuckets[queueNo].ForceTake(pktLen)
 			forwarder(qp.Rp)
 			break
 		}
