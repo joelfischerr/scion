@@ -37,7 +37,7 @@ type surplus struct {
 	MaxSurplus int
 }
 
-var _ SchedulerInterface = (*RateRoundRobinScheduler)(nil)
+// var _ SchedulerInterface = (*RateRoundRobinScheduler)(nil)
 
 func (sched *RateRoundRobinScheduler) Init(routerConfig queues.InternalRouterConfig) {
 

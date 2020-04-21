@@ -189,10 +189,13 @@ func putOnQueue(qosConfig *QosConfiguration, queueNo int, qp *queues.QPkt) {
 		qosConfig.config.Queues[queueNo].Enqueue(qp)
 	}
 
-	select {
-	case *qosConfig.schedul.GetMessages() <- true:
-	default:
-	}
+	// select {
+	// case *qosConfig.schedul.GetMessages() <- true:
+	// default:
+	// }
+	// log.Debug("Before send", "len(*qosConfig.schedul.GetMessages())", len(*qosConfig.schedul.GetMessages()))
+	*qosConfig.schedul.GetMessages() <- true
+	// log.Debug("After send", "len(*qosConfig.schedul.GetMessages())", len(*qosConfig.schedul.GetMessages()))
 }
 
 //  SendNotification might be needed for the part of @stygerma

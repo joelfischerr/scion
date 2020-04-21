@@ -28,17 +28,18 @@ type RoundRobinScheduler struct {
 	tb            queues.TokenBucket
 }
 
-var _ SchedulerInterface = (*RoundRobinScheduler)(nil)
+// var _ SchedulerInterface = (*RoundRobinScheduler)(nil)
 
 // This is a standard round robin dequeue ignoring things like priority
 
 func (sched *RoundRobinScheduler) Init(routerConfig queues.InternalRouterConfig) {
 	sched.totalLength = len(routerConfig.Queues)
 
-	sched.messages = make(chan bool)
+	sched.messages = make(chan bool, 20)
 
 	sched.tb.Init(routerConfig.Scheduler.Bandwidth)
 	sched.sleepDuration = routerConfig.Scheduler.Latency
+	// sched.sleepDuration = 1
 }
 
 func (sched *RoundRobinScheduler) Dequeue(queue queues.PacketQueueInterface,
@@ -54,7 +55,7 @@ func (sched *RoundRobinScheduler) Dequeue(queue queues.PacketQueueInterface,
 		}
 
 		for !(sched.tb.Take(qp.Rp.Bytes().Len())) {
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(1 * time.Millisecond)
 		}
 
 		forwarder(qp.Rp)
