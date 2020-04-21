@@ -17,6 +17,8 @@ package queues_test
 import (
 	"fmt"
 	"io/ioutil"
+	"math"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
@@ -265,4 +267,35 @@ func disableLog(b *testing.B) {
 		b.Fatalf("Unexpected error: %v", err)
 	}
 	root.SetHandler(log15.Must.FileHandler(file.Name(), log15.LogfmtFormat()))
+}
+
+func TestMarcsObservation(t *testing.T) {
+
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	fmt.Println(dir)
+
+	extConf, err := conf.LoadConfig("testdata/matchTypeTest-config.yaml")
+	if err != nil {
+		log.Debug("Load config file failed", "error", err)
+		log.Debug("The testdata folder from the parent folder should be available for this test but it isn't when running it with bazel. Just run it without Bazel and it will pass.")
+	}
+	qosConfig, _ := qos.InitQos(extConf, forwardPacketByDrop)
+
+	rc := queues.RegularClassRule{}
+
+	for i := 0; i < int(math.Pow10(5)); i++ {
+		source := fmt.Sprintf("%v-f%v:%v:%v", rand.Intn(9999), rand.Intn(900), rand.Intn(9999), rand.Intn(999))
+		destin := fmt.Sprintf("%v-f%v:%v:%v", rand.Intn(9999), rand.Intn(999), rand.Intn(9999), rand.Intn(999))
+
+		pkt := rpkt.PrepareRtrPacketWithStrings(source, destin, 1)
+
+		rul := rc.GetRuleForPacket(qosConfig.GetConfig(), pkt)
+		// queue := queues.GetQueueNumberForPacket(qosConfig.GetConfig(), pkt)
+
+		if rul == nil {
+			fmt.Println("Rule was nil")
+		}
+	}
+	fmt.Println("We're done!")
+
 }
