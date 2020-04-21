@@ -42,7 +42,7 @@ func (sched *DeficitRoundRobinScheduler) Init(routerConfig queues.InternalRouter
 	sched.quantumSum = 0
 	sched.totalLength = len(routerConfig.Queues)
 
-	sched.messages = make(chan bool)
+	sched.messages = make(chan bool, 20)
 
 	sched.logger = initLogger(sched.totalLength)
 
@@ -92,6 +92,7 @@ func (sched *DeficitRoundRobinScheduler) Dequeuer(routerConfig queues.InternalRo
 	}
 	sleepDuration := time.Duration(time.Duration(sched.sleepDuration) * time.Microsecond)
 	for <-sched.messages {
+		// log.Debug("Scheduler Iteration!")
 		t0 := time.Now()
 		sched.totalQueueLength = 0
 		for i := 0; i < sched.totalLength; i++ {
