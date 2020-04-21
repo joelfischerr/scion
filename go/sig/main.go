@@ -120,12 +120,16 @@ func realMain() int {
 // setupBasic loads the config from file and initializes logging.
 func setupBasic() error {
 	// Load and initialize config.
-	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
-		return serrors.New("Failed to load config", "err", err, "file", env.ConfigFile())
+	md, err := toml.DecodeFile(env.ConfigFile(), &cfg)
+	if err != nil {
+		return serrors.WrapStr("Failed to load config", err, "file", env.ConfigFile())
+	}
+	if len(md.Undecoded()) > 0 {
+		return serrors.New("Failed to load config: undecoded keys", "undecoded", md.Undecoded())
 	}
 	cfg.InitDefaults()
 	if err := log.Setup(cfg.Logging); err != nil {
-		return serrors.New("Failed to initialize logging", "err", err)
+		return serrors.WrapStr("Failed to initialize logging", err)
 	}
 	prom.ExportElementID(cfg.Sig.ID)
 	return env.LogAppStarted("SIG", cfg.Sig.ID)
@@ -150,16 +154,16 @@ func setupTun() (io.ReadWriteCloser, error) {
 		return nil, err
 	}
 	src := cfg.Sig.SrcIP4
-	if len(src) == 0 && cfg.Sig.IP.To4() != nil {
-		src = cfg.Sig.IP
+	if len(src) == 0 && sigcmn.CtrlAddr.To4() != nil {
+		src = sigcmn.CtrlAddr
 	}
 	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV4Net, src); err != nil {
 		return nil,
 			common.NewBasicError("Unable to add default IPv4 route to SIG routing table", err)
 	}
 	src = cfg.Sig.SrcIP6
-	if len(src) == 0 && cfg.Sig.IP.To16() != nil && cfg.Sig.IP.To4() == nil {
-		src = cfg.Sig.IP
+	if len(src) == 0 && sigcmn.CtrlAddr.To16() != nil && sigcmn.CtrlAddr.To4() == nil {
+		src = sigcmn.CtrlAddr
 	}
 	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV6Net, src); err != nil {
 		return nil,
