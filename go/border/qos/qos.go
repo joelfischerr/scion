@@ -152,11 +152,8 @@ func (qosConfig *QosConfiguration) QueuePacket(rp *rpkt.RtrPkt) {
 
 	qp := queues.QPkt{Rp: rp, QueueNo: queueNo}
 
-	select {
-	case *qosConfig.schedul.GetMessages() <- true:
-	default:
-	}
-	qosConfig.SendToWorker(queueNo, &qp)
+	// qosConfig.SendToWorker(queueNo, &qp)
+	putOnQueue(qosConfig, queueNo, &qp)
 }
 
 func worker(qosConfig *QosConfiguration, workChannel *chan *queues.QPkt) {
@@ -186,6 +183,11 @@ func putOnQueue(qosConfig *QosConfiguration, queueNo int, qp *queues.QPkt) {
 		qosConfig.dropPacket(qp)
 	default:
 		qosConfig.config.Queues[queueNo].Enqueue(qp)
+	}
+
+	select {
+	case *qosConfig.schedul.GetMessages() <- true:
+	default:
 	}
 }
 
