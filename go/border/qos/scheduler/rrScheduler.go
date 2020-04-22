@@ -32,7 +32,7 @@ var _ SchedulerInterface = (*RoundRobinScheduler)(nil)
 
 // This is a standard round robin dequeue ignoring things like priority
 
-func (sched *RoundRobinScheduler) Init(routerConfig queues.InternalRouterConfig) {
+func (sched *RoundRobinScheduler) Init(routerConfig *queues.InternalRouterConfig) {
 	sched.totalLength = len(routerConfig.Queues)
 
 	sched.messages = make(chan bool, 20)
@@ -61,7 +61,7 @@ func (sched *RoundRobinScheduler) Dequeue(queue queues.PacketQueueInterface,
 	}
 }
 
-func (sched *RoundRobinScheduler) Dequeuer(routerConfig queues.InternalRouterConfig,
+func (sched *RoundRobinScheduler) Dequeuer(routerConfig *queues.InternalRouterConfig,
 	forwarder func(rp *rpkt.RtrPkt)) {
 	if sched.totalLength == 0 {
 		panic("There are no queues to dequeue from. Please check that Init is called")

@@ -79,7 +79,7 @@ func (q *QosConfiguration) GetNotification() chan *queues.NPkt {
 // a mock scheduler for testing. Do not use for anything else.
 func (qosConfig *QosConfiguration) SetAndInitSchedul(sched scheduler.SchedulerInterface) {
 	qosConfig.schedul = sched
-	qosConfig.schedul.Init(qosConfig.config)
+	qosConfig.schedul.Init(&qosConfig.config)
 }
 
 func InitQos(extConf conf.ExternalConfig, forwarder func(rp *rpkt.RtrPkt)) (
@@ -123,8 +123,8 @@ func InitScheduler(qConfig *QosConfiguration, forwarder func(rp *rpkt.RtrPkt)) e
 	// qConfig.schedul = &scheduler.RoundRobinScheduler{}
 	qConfig.schedul = &scheduler.DeficitRoundRobinScheduler{}
 	// qConfig.schedul = &scheduler.RateRoundRobinScheduler{}
-	qConfig.schedul.Init(qConfig.config)
-	go qConfig.schedul.Dequeuer(qConfig.config, qConfig.Forwarder)
+	qConfig.schedul.Init(&qConfig.config)
+	go qConfig.schedul.Dequeuer(&qConfig.config, qConfig.Forwarder)
 
 	return nil
 }

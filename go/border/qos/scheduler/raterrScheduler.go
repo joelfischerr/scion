@@ -39,7 +39,7 @@ type surplus struct {
 
 var _ SchedulerInterface = (*RateRoundRobinScheduler)(nil)
 
-func (sched *RateRoundRobinScheduler) Init(routerConfig queues.InternalRouterConfig) {
+func (sched *RateRoundRobinScheduler) Init(routerConfig *queues.InternalRouterConfig) {
 
 	sched.quantumSum = 0
 	sched.totalLength = len(routerConfig.Queues)
@@ -83,7 +83,7 @@ func (sched *RateRoundRobinScheduler) Init(routerConfig queues.InternalRouterCon
 
 }
 
-func (sched *RateRoundRobinScheduler) Dequeuer(routerConfig queues.InternalRouterConfig,
+func (sched *RateRoundRobinScheduler) Dequeuer(routerConfig *queues.InternalRouterConfig,
 	forwarder func(rp *rpkt.RtrPkt)) {
 	if sched.totalLength == 0 {
 		panic("There are no queues to dequeue from. Please check that Init is called")
@@ -97,7 +97,7 @@ func (sched *RateRoundRobinScheduler) Dequeuer(routerConfig queues.InternalRoute
 		for i := 0; i < sched.totalLength; i++ {
 			_ = <-sched.jobs
 		}
-		sched.LogUpdate(routerConfig)
+		sched.LogUpdate(*routerConfig)
 
 		for time.Now().Sub(t0) < sleepDuration {
 			time.Sleep(time.Duration(sched.sleepDuration/10) * time.Microsecond)
