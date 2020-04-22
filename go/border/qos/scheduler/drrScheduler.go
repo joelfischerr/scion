@@ -42,7 +42,7 @@ func (sched *DeficitRoundRobinScheduler) Init(routerConfig queues.InternalRouter
 	sched.quantumSum = 0
 	sched.totalLength = len(routerConfig.Queues)
 
-	sched.messages = make(chan bool)
+	sched.messages = make(chan bool, 20)
 
 	sched.logger = initLogger(sched.totalLength)
 

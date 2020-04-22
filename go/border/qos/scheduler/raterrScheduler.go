@@ -46,7 +46,7 @@ func (sched *RateRoundRobinScheduler) Init(routerConfig queues.InternalRouterCon
 
 	sched.logger = initLogger(sched.totalLength)
 
-	sched.messages = make(chan bool)
+	sched.messages = make(chan bool, 20)
 
 	sched.schedulerSurplus = surplus{0, make([]int, sched.totalLength), -1}
 	sched.schedulerSurplusMtx = &sync.Mutex{}

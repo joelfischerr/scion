@@ -35,7 +35,7 @@ var _ SchedulerInterface = (*RoundRobinScheduler)(nil)
 func (sched *RoundRobinScheduler) Init(routerConfig queues.InternalRouterConfig) {
 	sched.totalLength = len(routerConfig.Queues)
 
-	sched.messages = make(chan bool)
+	sched.messages = make(chan bool, 20)
 
 	sched.tb.Init(routerConfig.Scheduler.Bandwidth)
 	sched.sleepDuration = routerConfig.Scheduler.Latency
