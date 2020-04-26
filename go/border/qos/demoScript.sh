@@ -106,13 +106,13 @@ sleep 5
 
 # # # # Do PING for 5 seconds AS110 to AS111
 printBlue "AS110 to AS111"
-./bin/scmp echo -local 1-ff00:0:110,[127.0.0.1] -remote 1-ff00:0:111,[0.0.0.0] -sciond 127.0.0.11:30255 -c 5
+./bin/scmp echo -remote 1-ff00:0:111,[0.0.0.0] -sciond 127.0.0.11:30255 -c 5
 # # # # Do PING for 5 seconds AS110 to AS112
 printBlue "AS110 to AS112"
-./bin/scmp echo -local 1-ff00:0:110,[127.0.0.1] -remote 1-ff00:0:112,[0.0.0.0] -sciond 127.0.0.11:30255 -c 5
+./bin/scmp echo  -remote 1-ff00:0:112,[0.0.0.0] -sciond 127.0.0.11:30255 -c 5
 # # # # Do PING for 5 seconds AS111 to AS112
 printBlue "AS111 to AS112"
-./bin/scmp echo -local 1-ff00:0:111,[127.0.0.1] -remote 1-ff00:0:112,[0.0.0.0] -sciond 127.0.0.19:30255 -c 5
+./bin/scmp echo -remote 1-ff00:0:112,[0.0.0.0] -sciond 127.0.0.19:30255 -c 5
 
 waitForEnter
 
@@ -125,7 +125,7 @@ pid0=$!
 
 SCION_DAEMON_ADDRESS='127.0.0.11:30255'
 export SCION_DAEMON_ADDRESS
-./../scion-apps/bwtester/bwtestclient/bwtestclient -s 1-ff00:0:111,[127.0.0.1]:40101 -cs 10,1000,?,50Mbps -sc 1,1000,?,1Mbps
+./../scion-apps/bwtester/bwtestclient/bwtestclient -s 1-ff00:0:111,[127.0.0.1]:40101 -cs 10,1000,?,10Mbps -sc 1,1000,?,1Mbps
 
 kill -9 $pid0
 
