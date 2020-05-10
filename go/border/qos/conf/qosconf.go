@@ -26,7 +26,7 @@ type ActionProfile struct {
 	Action    PoliceAction `yaml:"action"`
 }
 
-// ExternalPacketQueue is the configuration loaded from the configuraiton file
+// ExternalPacketQueue is the configuration loaded from the configuration file
 type ExternalPacketQueue struct {
 	Name         string          `yaml:"name"`
 	ID           int             `yaml:"id"`
