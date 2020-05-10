@@ -424,12 +424,12 @@ func matchRuleL4Type(rule *InternalClassRule, extensions []common.ExtnType) bool
 			return true
 		}
 		for k := 0; k < len(extensions); k++ {
-			if uint8(rule.L4Type[i].extension) == extensions[k].Type {
+			if uint8(rule.L4Type[i].extension) == extensions[k].Type &&
+				rule.L4Type[i].baseProtocol == extensions[k].Class {
 				return true
 			}
 		}
 	}
-
 	return false
 }
 
