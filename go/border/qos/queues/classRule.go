@@ -318,7 +318,12 @@ var sourceAnyDestinationMatches []*InternalClassRule
 var destinationAnySourceRules []*InternalClassRule
 var asOnlySourceRules []*InternalClassRule
 var asOnlyDestinationRules []*InternalClassRule
-var isdOnlySourceRules, isdOnlyDestinationRules, interfaceIncomingRules, interfaceOutgoingRules, matched, l4OnlyRules []*InternalClassRule
+var isdOnlySourceRules []*InternalClassRule
+var isdOnlyDestinationRules []*InternalClassRule
+var interfaceIncomingRules []*InternalClassRule
+var interfaceOutgoingRules []*InternalClassRule
+var matched []*InternalClassRule
+var l4OnlyRules []*InternalClassRule
 var maskMatched, maskSad, maskDas, maskLf, maskIntf []bool
 var srcAddr, dstAddr addr.IA
 var extensions []common.ExtnType

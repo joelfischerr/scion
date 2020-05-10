@@ -139,39 +139,14 @@ func BenchmarkSingleMatchSequential(b *testing.B) {
 	}
 }
 
-// func BenchmarkSingleMatchParallel(b *testing.B) {
-// 	disableLog(b)
-// 	extConf, _ := conf.LoadConfig("testdata/matchTypeTest-config.yaml")
-
-// 	qConfig := qos.Configuration{}
-
-// 	var err error
-// 	if err = qos.ConvExternalToInternalConfig(&qConfig, extConf); err != nil {
-// 		log15.Error("Initialising the classification data structures has failed", "error", err)
-// 	}
-// 	if err = qos.InitClassification(&qConfig); err != nil {
-// 		log15.Error("Initialising the classification data structures has failed", "error", err)
-// 	}
-
-// 	qosConfig := qConfig
-
-// 	rc := queues.ParallelClassRule{}
-
-// 	pkt := genRouterPacket("11-ff00:0:299", "22-ff00:0:188", 1)
-
-// 	b.ResetTimer()
-// 	for i := 0; i < b.N; i++ {
-// 		rul := rc.GetRuleForPacket(qosConfig.GetConfig(), pkt)
-// 		_ = rul
-// 	}
-// }
-
 func BenchmarkCachelessClassRule(b *testing.B) {
 
 	extConf, err := conf.LoadConfig("testdata/matchTypeTest-config.yaml")
 	if err != nil {
 		log.Debug("Load config file failed", "error", err)
-		log.Debug("The testdata folder from the parent folder should be available for this test but it isn't when running it with bazel. Just run it without Bazel and it will pass.")
+		log.Debug("The testdata folder from the parent folder should be available" +
+			"for this test but it isn't when running it with bazel." +
+			"Just run it without Bazel and it will pass.")
 	}
 	qosConfig, _ := qos.InitQos(extConf, forwardPacketByDrop)
 	classifier := queues.CachelessClassRule{}
@@ -192,7 +167,9 @@ func BenchmarkStandardClassRule(b *testing.B) {
 	extConf, err := conf.LoadConfig("testdata/matchTypeTest-config.yaml")
 	if err != nil {
 		log.Debug("Load config file failed", "error", err)
-		log.Debug("The testdata folder from the parent folder should be available for this test but it isn't when running it with bazel. Just run it without Bazel and it will pass.")
+		log.Debug("The testdata folder from the parent folder should be available" +
+			"for this test but it isn't when running it with bazel." +
+			"Just run it without Bazel and it will pass.")
 	}
 	qosConfig, _ := qos.InitQos(extConf, forwardPacketByDrop)
 	classifier := queues.RegularClassRule{}
@@ -213,7 +190,9 @@ func BenchmarkClassifier(b *testing.B) {
 	extConf, err := conf.LoadConfig("testdata/matchTypeTest-config.yaml")
 	if err != nil {
 		log.Debug("Load config file failed", "error", err)
-		log.Debug("The testdata folder from the parent folder should be available for this test but it isn't when running it with bazel. Just run it without Bazel and it will pass.")
+		log.Debug("The testdata folder from the parent folder should be available" +
+			"for this test but it isn't when running it with bazel." +
+			"Just run it without Bazel and it will pass.")
 	}
 	qosConfig, _ := qos.InitQos(extConf, forwardPacketByDrop)
 
@@ -243,13 +222,15 @@ func BenchmarkClassifier(b *testing.B) {
 func TestRuleMatchModes(t *testing.T) {
 	log.Debug("func TestRuleMatchModes(t *testing.T) {")
 
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	fmt.Println(dir)
 
 	extConf, err := conf.LoadConfig("testdata/matchTypeTest-config.yaml")
 	if err != nil {
 		log.Debug("Load config file failed", "error", err)
-		log.Debug("The testdata folder from the parent folder should be available for this test but it isn't when running it with bazel. Just run it without Bazel and it will pass.")
+		log.Debug("The testdata folder from the parent folder should be available" +
+			"for this test but it isn't when running it with bazel." +
+			"Just run it without Bazel and it will pass.")
 	}
 	qosConfig, _ := qos.InitQos(extConf, forwardPacketByDrop)
 
@@ -502,7 +483,9 @@ func BenchmarkClassification7(b *testing.B) {
 	bmClassification(b, noPktss, noQueue, noRule, noL4Rule, classifiers)
 }
 
-func bmClassification(b *testing.B, noPktss, noQueue, noRule, noL4Rule []int, classifiers []classifier) {
+func bmClassification(b *testing.B,
+	noPktss, noQueue, noRule, noL4Rule []int,
+	classifiers []classifier) {
 
 	benchTimes := 1
 
@@ -569,7 +552,11 @@ func bmClassification(b *testing.B, noPktss, noQueue, noRule, noL4Rule []int, cl
 		for _, param := range params {
 
 			name := fmt.Sprintf("%d-%d-%d", param.noQueues, param.noRules, param.noL4Rules)
-			loc := fmt.Sprintf("testdata/%d-%d-%d-config.yaml", param.noQueues, param.noRules, param.noL4Rules)
+			loc := fmt.Sprintf("testdata/%d-%d-%d-config.yaml",
+				param.noQueues,
+				param.noRules,
+				param.noL4Rules)
+
 			generateConfigFile(
 				param.noQueues,
 				param.noRules,
@@ -585,7 +572,9 @@ func bmClassification(b *testing.B, noPktss, noQueue, noRule, noL4Rule []int, cl
 					extConf, err := conf.LoadConfig(bench.configLocation)
 					if err != nil {
 						log.Debug("Load config file failed", "error", err)
-						log.Debug("The testdata folder from the parent folder should be available for this test but it isn't when running it with bazel. Just run it without Bazel and it will pass.")
+						log.Debug("The testdata folder from the parent folder should be available" +
+							"for this test but it isn't when running it with bazel." +
+							"Just run it without Bazel and it will pass.")
 					}
 					qosConfig, _ := qos.InitQos(extConf, forwardPacketByDrop)
 
@@ -626,15 +615,13 @@ func bmClassification(b *testing.B, noPktss, noQueue, noRule, noL4Rule []int, cl
 			}
 		}
 	}
-	// for _, bench := range benchmarks {
-	// 	err := os.Remove(bench.configLocation)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// }
 }
 
-func benchClassifier(b *testing.B, pkts []*rpkt.RtrPkt, classifier queues.ClassRuleInterface, config *queues.InternalRouterConfig) {
+func benchClassifier(b *testing.B,
+	pkts []*rpkt.RtrPkt,
+	classifier queues.ClassRuleInterface,
+	config *queues.InternalRouterConfig) {
+
 	for n := 0; n < b.N; n++ {
 		l := len(pkts)
 		for i := 0; i < l; i++ {

@@ -93,16 +93,20 @@ func InitQos(extConf conf.ExternalConfig, forwarder func(rp *rpkt.RtrPkt)) (
 	qConfig := Configuration{}
 	var err error
 	if err = ConvExternalToInternalConfig(&qConfig, extConf); err != nil {
-		log.Error("InitQos: Initialising the classification data structures has failed", "error", err)
+		log.Error("InitQos: Initialising the classification data structures has failed",
+			"error", err)
 	}
 	if err = InitClassification(&qConfig); err != nil {
-		log.Error("InitQos: Initialising the classification data structures has failed", "error", err)
+		log.Error("InitQos: Initialising the classification data structures has failed",
+			"error", err)
 	}
 	if err = initScheduler(&qConfig, forwarder); err != nil {
-		log.Error("InitQos: Initialising the scheduler has failed", "error", err)
+		log.Error("InitQos: Initialising the scheduler has failed",
+			"error", err)
 	}
 	if err = initWorkers(&qConfig); err != nil {
-		log.Error("InitQos: Initialising the workers has failed", "error", err)
+		log.Error("InitQos: Initialising the workers has failed",
+			"error", err)
 	}
 
 	return qConfig, err

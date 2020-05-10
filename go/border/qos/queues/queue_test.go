@@ -123,7 +123,9 @@ func benchQueue(b *testing.B, count, maxLength int, queueToUse queues.PacketQueu
 	}
 }
 
-func benchQueuePopMulti(b *testing.B, count, maxLength int, queueToUse queues.PacketQueueInterface) {
+func benchQueuePopMulti(b *testing.B,
+	count, maxLength int,
+	queueToUse queues.PacketQueueInterface) {
 
 	muta := &sync.Mutex{}
 	mutb := &sync.Mutex{}

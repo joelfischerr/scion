@@ -67,7 +67,9 @@ func (sched *WeightedRoundRobinScheduler) Dequeue(
 
 	var qp *queues.QPkt
 
-	pktToDequeue := getNoPacketsToDequeue(sched.totalQueueLength, queue.GetPriority(), sched.quantumSum)
+	pktToDequeue := getNoPacketsToDequeue(sched.totalQueueLength,
+		queue.GetPriority(),
+		sched.quantumSum)
 
 	sched.logger.attempted[queueNo] += pktToDequeue
 
@@ -140,9 +142,16 @@ func (sched *WeightedRoundRobinScheduler) showLog(routerConfig queues.InternalRo
 			sched.logger.lastRound, "deqAttempted",
 			sched.logger.attempted, "deqTotal",
 			sched.logger.total, "currQueueLen", queLen)
-		log.Debug("SPEED", "Mbps", float64(amount0)/1000000.0*8.0, "MBps", float64(amount0)/1000000.0)
+		log.Debug("SPEED",
+			"Mbps", float64(amount0)/1000000.0*8.0,
+			"MBps", float64(amount0)/1000000.0)
+		log.Debug("Bucket",
+			"tokens Mbps", float64(sched.tb.GetAvailable())/1000000.0*8.0,
+			"MBps", float64(sched.tb.GetAvailable())/1000000.0,
+			"allwed MBps", float64(sched.tb.GetMaxBandwidth())/1000000.0)
+
 		amount0 = 0
-		log.Debug("Bucket", "tokens Mbps", float64(sched.tb.GetAvailable())/1000000.0*8.0, "MBps", float64(sched.tb.GetAvailable())/1000000.0, "allwed MBps", float64(sched.tb.GetMaxBandwidth())/1000000.0)
+
 		for i := 0; i < len(sched.logger.lastRound); i++ {
 			sched.logger.lastRound[i] = 0
 		}
