@@ -33,6 +33,7 @@ type WeightedRoundRobinScheduler struct {
 	sleepDuration    int
 	tb               queues.TokenBucket
 	logger           ScheduleLogger
+	amount0          int
 }
 
 var _ SchedulerInterface = (*WeightedRoundRobinScheduler)(nil)
@@ -83,7 +84,7 @@ func (sched *WeightedRoundRobinScheduler) Dequeue(
 
 		pktLen = len(qp.Rp.Raw)
 
-		amount0 += pktLen
+		sched.amount0 += pktLen
 
 		for !(sched.tb.Take(pktLen)) {
 			time.Sleep(30 * time.Millisecond)
@@ -120,8 +121,6 @@ func (sched *WeightedRoundRobinScheduler) Dequeuer(routerConfig *queues.Internal
 	}
 }
 
-var amount0 int
-
 func (sched *WeightedRoundRobinScheduler) UpdateIncoming(queueNo int) {
 	sched.logger.incoming[queueNo]++
 }
@@ -143,15 +142,13 @@ func (sched *WeightedRoundRobinScheduler) showLog(routerConfig queues.InternalRo
 			sched.logger.attempted, "deqTotal",
 			sched.logger.total, "currQueueLen", queLen)
 		log.Debug("SPEED",
-			"Mbps", float64(amount0)/1000000.0*8.0,
-			"MBps", float64(amount0)/1000000.0)
+            "Mbps", float64(sched.amount0)/1000000.0*8.0,
+            "MBps", float64(sched.amount0)/1000000.0)
 		log.Debug("Bucket",
-			"tokens Mbps", float64(sched.tb.GetAvailable())/1000000.0*8.0,
-			"MBps", float64(sched.tb.GetAvailable())/1000000.0,
-			"allwed MBps", float64(sched.tb.GetMaxBandwidth())/1000000.0)
-
-		amount0 = 0
-
+            "tokens Mbps", float64(sched.tb.GetAvailable())/1000000.0*8.0, "MBps",
+            float64(sched.tb.GetAvailable())/1000000.0,
+            "allwed MBps", float64(sched.tb.GetMaxBandwidth())/1000000.0)
+        sched.amount0 = 0
 		for i := 0; i < len(sched.logger.lastRound); i++ {
 			sched.logger.lastRound[i] = 0
 		}
