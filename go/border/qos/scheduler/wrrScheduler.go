@@ -129,7 +129,7 @@ func (sched *WeightedRoundRobinScheduler) UpdateIncoming(queueNo int) {
 func (sched *WeightedRoundRobinScheduler) showLog(routerConfig queues.InternalRouterConfig) {
 
 	sched.logger.iterations++
-	if time.Now().Sub(sched.logger.t0) > time.Duration(1*time.Second) {
+	if time.Now().Sub(sched.logger.t0) > time.Duration(10*time.Second) {
 
 		var queLen = make([]int, sched.totalLength)
 		for i := 0; i < sched.totalLength; i++ {

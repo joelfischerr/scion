@@ -398,12 +398,6 @@ func (*RegularClassRule) GetRuleForPacket(
 
 	matched = intersectListsRules(sources, destinations)
 
-	// maskMatched = make([]bool, len(matched))
-	// maskSad = make([]bool, len(sourceAnyDestinationMatches))
-	// maskDas = make([]bool, len(destinationAnySourceRules))
-	// maskLf = make([]bool, len(l4OnlyRules))
-	// maskIntf = make([]bool, len(l4OnlyRules))
-
 	matchL4Type(maskMatched, &matched, l4t, extensions)
 	matchL4Type(maskSad, &sourceAnyDestinationMatches, l4t, extensions)
 	matchL4Type(maskDas, &destinationAnySourceRules, l4t, extensions)

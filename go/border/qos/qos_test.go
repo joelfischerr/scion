@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/scionproto/scion/go/border/qos/conf"
-	"github.com/scionproto/scion/go/border/qos/queues"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -120,99 +119,4 @@ func getPackets(numberOfPackets int) []*rpkt.RtrPkt {
 		copy(arr[i*len(pkts):], pkts)
 	}
 	return arr
-}
-
-var blocker = make(chan bool, 1024)
-
-func BenchmarkQueueSinglePacketBlocking(t *testing.B) {
-	root := log15.Root()
-	file, err := ioutil.TempFile("", "benchmark-log")
-	require.NoError(t, err)
-	root.SetHandler(log15.Must.FileHandler(file.Name(), log15.LogfmtFormat()))
-
-	extConfig, err := conf.LoadConfig("testdata/sample-config.yaml")
-	require.NoError(t, err)
-	qosConfig, _ := InitQos(extConfig, forwardPacketByDropAndUnblock)
-	arr := getPackets(1)
-
-	t.ResetTimer()
-	var i int
-	const l = 20
-	for n := 0; n < t.N; n++ {
-		for i = 0; i < l; i++ {
-			qosConfig.QueuePacket(arr[0])
-		}
-
-		for i = 0; i < l; i++ {
-			<-blocker
-		}
-	}
-}
-
-// func BenchmarkQueueSinglePacketBlockingDiffNo(b *testing.B) {
-// 	root := log15.Root()
-// 	file, err := ioutil.TempFile("", "benchmark-log")
-// 	require.NoError(b, err)
-// 	root.SetHandler(log15.Must.FileHandler(file.Name(), log15.LogfmtFormat()))
-
-// 	extConfig, err := conf.LoadConfig("testdata/sample-config.yaml")
-// 	require.NoError(b, err)
-// 	qosConfig, _ := InitQos(extConfig, forwardPacketByDropAndUnblock)
-// 	arr := getPackets(1)
-
-// 	b.ResetTimer()
-// 	var i int
-// 	for l := 0; l < 1024; l++ {
-// 		b.Run(fmt.Sprintf("Len%d", l), func(b *testing.B) {
-// 			for n := 0; n < b.N; n++ {
-// 				for i = 0; i < l; i++ {
-// 					qosConfig.QueuePacket(arr[0])
-// 				}
-
-// 				for i = 0; i < l; i++ {
-// 					<-blocker
-// 				}
-// 			}
-// 		})
-// 	}
-// }
-
-func BenchmarkPoliceQueue(t *testing.B) {
-	root := log15.Root()
-	file, err := ioutil.TempFile("", "benchmark-log")
-	require.NoError(t, err)
-	root.SetHandler(log15.Must.FileHandler(file.Name(), log15.LogfmtFormat()))
-
-	extConfig, err := conf.LoadConfig("testdata/sample-config.yaml")
-	require.NoError(t, err)
-	qosConfig, _ := InitQos(extConfig, forwardPacketByDropAndUnblock)
-	arr := getPackets(1)
-	qp := &queues.QPkt{Rp: arr[0], QueueNo: 0}
-
-	t.ResetTimer()
-	for n := 0; n < t.N; n++ {
-		qosConfig.config.Queues[0].Police(qp)
-	}
-}
-
-func BenchmarkCheckAction(t *testing.B) {
-	root := log15.Root()
-	file, err := ioutil.TempFile("", "benchmark-log")
-	require.NoError(t, err)
-	root.SetHandler(log15.Must.FileHandler(file.Name(), log15.LogfmtFormat()))
-
-	extConfig, err := conf.LoadConfig("testdata/sample-config.yaml")
-	require.NoError(t, err)
-	qosConfig, _ := InitQos(extConfig, forwardPacketByDropAndUnblock)
-
-	t.ResetTimer()
-	for n := 0; n < t.N; n++ {
-		profAct := qosConfig.config.Queues[0].CheckAction()
-		_ = profAct
-	}
-}
-
-func forwardPacketByDropAndUnblock(rp *rpkt.RtrPkt) {
-	blocker <- true
-	rp.Release()
 }
