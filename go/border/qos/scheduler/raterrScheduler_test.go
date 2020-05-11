@@ -56,9 +56,7 @@ func TestEnAndDequeuePackets(T *testing.T) {
 			queue1.Enqueue(&qp)
 		}
 		j = mockSched.dequeuePackets(&queue1, 100, forwardPacketByDrop, 0)
-		j = <-mockSched.jobs
-		// fmt.Println("Dequeued", j)
-		// fmt.Println("Iteration", n)
+		_ = <-mockSched.jobs
 	}
 }
 

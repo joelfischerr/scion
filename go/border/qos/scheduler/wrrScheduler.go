@@ -33,7 +33,6 @@ type WeightedRoundRobinScheduler struct {
 	sleepDuration    int
 	tb               queues.TokenBucket
 	logger           ScheduleLogger
-	reportedTokens   int
 }
 
 var _ SchedulerInterface = (*WeightedRoundRobinScheduler)(nil)
@@ -42,8 +41,12 @@ func (sched *WeightedRoundRobinScheduler) Init(routerConfig *queues.InternalRout
 
 	sched.quantumSum = 0
 	sched.totalLength = len(routerConfig.Queues)
+	var messageLen int
+	for i := 0; i < len(routerConfig.Queues); i++ {
+		messageLen += routerConfig.Queues[i].GetCapacity()
+	}
 
-	sched.messages = make(chan bool, 100)
+	sched.messages = make(chan bool, messageLen)
 
 	sched.logger = initLogger(sched.totalLength)
 
@@ -58,13 +61,15 @@ func getNoPacketsToDequeue(totalLength int, priority int, totalPriority int) int
 	return priority
 }
 
-func (sched *WeightedRoundRobinScheduler) Dequeue(queue queues.PacketQueueInterface,
+func (sched *WeightedRoundRobinScheduler) Dequeue(
+	queue queues.PacketQueueInterface,
 	forwarder func(rp *rpkt.RtrPkt), queueNo int) {
 
-	nopkts := getNoPacketsToDequeue(sched.totalQueueLength, queue.GetPriority(), sched.quantumSum)
-	pktToDequeue := nopkts
-
 	var qp *queues.QPkt
+
+	pktToDequeue := getNoPacketsToDequeue(sched.totalQueueLength,
+		queue.GetPriority(),
+		sched.quantumSum)
 
 	sched.logger.attempted[queueNo] += pktToDequeue
 
@@ -78,10 +83,10 @@ func (sched *WeightedRoundRobinScheduler) Dequeue(queue queues.PacketQueueInterf
 
 		pktLen = len(qp.Rp.Raw)
 
-		sched.reportedTokens += pktLen
+		amount0 += pktLen
 
 		for !(sched.tb.Take(pktLen)) {
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(30 * time.Millisecond)
 		}
 
 		sched.logger.lastRound[queueNo]++
@@ -115,6 +120,8 @@ func (sched *WeightedRoundRobinScheduler) Dequeuer(routerConfig *queues.Internal
 	}
 }
 
+var amount0 int
+
 func (sched *WeightedRoundRobinScheduler) UpdateIncoming(queueNo int) {
 	sched.logger.incoming[queueNo]++
 }
@@ -135,9 +142,16 @@ func (sched *WeightedRoundRobinScheduler) showLog(routerConfig queues.InternalRo
 			sched.logger.lastRound, "deqAttempted",
 			sched.logger.attempted, "deqTotal",
 			sched.logger.total, "currQueueLen", queLen)
-		log.Debug("SPEED", "Mbps", float64(sched.reportedTokens)/1000000.0*8.0, "MBps", float64(sched.reportedTokens)/1000000.0)
-		sched.reportedTokens = 0
-		log.Debug("Bucket", "tokens Mbps", float64(sched.tb.GetAvailable())/1000000.0*8.0, "MBps", float64(sched.tb.GetAvailable())/1000000.0, "allwed MBps", float64(sched.tb.GetMaxBandwidth())/1000000.0)
+		log.Debug("SPEED",
+			"Mbps", float64(amount0)/1000000.0*8.0,
+			"MBps", float64(amount0)/1000000.0)
+		log.Debug("Bucket",
+			"tokens Mbps", float64(sched.tb.GetAvailable())/1000000.0*8.0,
+			"MBps", float64(sched.tb.GetAvailable())/1000000.0,
+			"allwed MBps", float64(sched.tb.GetMaxBandwidth())/1000000.0)
+
+		amount0 = 0
+
 		for i := 0; i < len(sched.logger.lastRound); i++ {
 			sched.logger.lastRound[i] = 0
 		}

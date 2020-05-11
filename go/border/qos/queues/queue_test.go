@@ -123,7 +123,9 @@ func benchQueue(b *testing.B, count, maxLength int, queueToUse queues.PacketQueu
 	}
 }
 
-func benchQueuePopMulti(b *testing.B, count, maxLength int, queueToUse queues.PacketQueueInterface) {
+func benchQueuePopMulti(b *testing.B,
+	count, maxLength int,
+	queueToUse queues.PacketQueueInterface) {
 
 	muta := &sync.Mutex{}
 	mutb := &sync.Mutex{}
@@ -149,5 +151,40 @@ func benchQueuePopMulti(b *testing.B, count, maxLength int, queueToUse queues.Pa
 		}
 		retPkt = queueToUse.PopMultiple(count)
 		_ = retPkt
+	}
+}
+
+func BenchmarkChannelQueue(b *testing.B) {
+
+	queue := queues.ChannelPacketQueue{}
+
+	count := 100
+
+	muta := &sync.Mutex{}
+	mutb := &sync.Mutex{}
+
+	intQue := queues.PacketQueue{
+		Name:         "Channel Packet Queue",
+		ID:           0,
+		MinBandwidth: 0,
+		MaxBandWidth: 0,
+		PoliceRate:   0,
+		MaxLength:    1024,
+		Priority:     100,
+		Profile:      nil}
+
+	queue.InitQueue(intQue, muta, mutb)
+
+	qp := &queues.QPkt{Rp: nil, QueueNo: 0}
+	var retPkt *queues.QPkt
+
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < count; i++ {
+			queue.Enqueue(qp)
+		}
+		for i := 0; i < count; i++ {
+			retPkt = queue.Pop()
+			_ = retPkt
+		}
 	}
 }
