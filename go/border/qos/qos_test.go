@@ -149,34 +149,6 @@ func BenchmarkQueueSinglePacketBlocking(t *testing.B) {
 	}
 }
 
-// func BenchmarkQueueSinglePacketBlockingDiffNo(b *testing.B) {
-// 	root := log15.Root()
-// 	file, err := ioutil.TempFile("", "benchmark-log")
-// 	require.NoError(b, err)
-// 	root.SetHandler(log15.Must.FileHandler(file.Name(), log15.LogfmtFormat()))
-
-// 	extConfig, err := conf.LoadConfig("testdata/sample-config.yaml")
-// 	require.NoError(b, err)
-// 	qosConfig, _ := InitQos(extConfig, forwardPacketByDropAndUnblock)
-// 	arr := getPackets(1)
-
-// 	b.ResetTimer()
-// 	var i int
-// 	for l := 0; l < 1024; l++ {
-// 		b.Run(fmt.Sprintf("Len%d", l), func(b *testing.B) {
-// 			for n := 0; n < b.N; n++ {
-// 				for i = 0; i < l; i++ {
-// 					qosConfig.QueuePacket(arr[0])
-// 				}
-
-// 				for i = 0; i < l; i++ {
-// 					<-blocker
-// 				}
-// 			}
-// 		})
-// 	}
-// }
-
 func BenchmarkPoliceQueue(t *testing.B) {
 	root := log15.Root()
 	file, err := ioutil.TempFile("", "benchmark-log")

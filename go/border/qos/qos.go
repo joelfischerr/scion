@@ -159,7 +159,7 @@ func initWorkers(qConfig *Configuration) error {
 // QueuePacket is called from router.go and is the first step in the qos subsystem
 // it is thread safe (necessary bc. of multiple sockets in the border router).
 func (qosConfig *Configuration) QueuePacket(rp *rpkt.RtrPkt) {
-	// rc := queues.RegularClassRule{}
+
 	rc := queues.CachelessClassRule{}
 	config := qosConfig.GetConfig()
 
@@ -216,7 +216,7 @@ func (qosConfig *Configuration) SendNotification(qp *queues.QPkt) {
 
 func (qosConfig *Configuration) dropPacket(qp *queues.QPkt) {
 	defer qp.Rp.Release()
-	qosConfig.SendNotification(qp)
+
 	qosConfig.droppedPackets++
 	log.Info("Dropping packet", "qosConfig.droppedPackets", qosConfig.droppedPackets)
 	var queLen = make([]int, len(*qosConfig.GetQueues()))
