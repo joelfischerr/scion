@@ -9,7 +9,11 @@ type CachelessClassRule struct{}
 
 var _ ClassRuleInterface = (*CachelessClassRule)(nil)
 
+var sources [3][]*InternalClassRule
+var destinations [3][]*InternalClassRule
+
 // GetRuleForPacket returns the rule for rp
+// It works just like GetRuleForPacket of classRule.go but does not use the cache
 func (*CachelessClassRule) GetRuleForPacket(
 	config *InternalRouterConfig, rp *rpkt.RtrPkt) *InternalClassRule {
 
@@ -59,12 +63,6 @@ func (*CachelessClassRule) GetRuleForPacket(
 	destinations[2] = isdOnlyDestinationRules
 
 	matched = intersectListsRules(sources, destinations)
-
-	maskMatched = make([]bool, len(matched))
-	maskSad = make([]bool, len(sourceAnyDestinationMatches))
-	maskDas = make([]bool, len(destinationAnySourceRules))
-	maskLf = make([]bool, len(l4OnlyRules))
-	maskIntf = make([]bool, len(l4OnlyRules))
 
 	matchL4Type(maskMatched, &matched, l4t, extensions)
 	matchL4Type(maskSad, &sourceAnyDestinationMatches, l4t, extensions)

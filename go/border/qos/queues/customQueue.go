@@ -21,6 +21,8 @@ import (
 	"github.com/scionproto/scion/go/border/qos/conf"
 )
 
+// CustomPacketQueue is a queue for Qpkts based on a ringbuffer.
+// It was only used during development. For documentation please see channelQueue.go or bufQueue.go
 type CustomPacketQueue struct {
 	pktQue PacketQueue
 	mutex  *sync.Mutex
@@ -66,7 +68,15 @@ func (pq *CustomPacketQueue) canDequeue() bool {
 }
 
 func (pq *CustomPacketQueue) GetFillLevel() int {
-	return pq.length / pq.pktQue.MaxLength
+	pq.mutex.Lock()
+	defer pq.mutex.Unlock()
+	return int(float64(pq.length) / float64(pq.pktQue.MaxLength) * 100)
+}
+
+// GetCapacity returns the capacity i.e. the maximum number of
+// items on this queue
+func (pq *CustomPacketQueue) GetCapacity() int {
+	return pq.pktQue.MaxLength
 }
 
 func (pq *CustomPacketQueue) GetLength() int {

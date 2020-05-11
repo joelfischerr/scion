@@ -54,6 +54,10 @@ func (tb *TokenBucket) refill() {
 }
 
 func (tb *TokenBucket) Available(amount int) bool {
+
+	if tb.tokens > amount {
+		return true
+	}
 	tb.refill()
 	if tb.tokens > amount {
 		return true
@@ -61,8 +65,11 @@ func (tb *TokenBucket) Available(amount int) bool {
 	return false
 }
 
+func (tb *TokenBucket) GetMaxBandwidth() int {
+	return tb.maxBandWidth
+}
+
 func (tb *TokenBucket) GetAvailable() int {
-	tb.refill()
 	return tb.tokens
 }
 
@@ -73,10 +80,16 @@ func (tb *TokenBucket) GetAll() int {
 }
 
 func (tb *TokenBucket) ForceTake(no int) {
+	tb.refill()
 	tb.tokens -= no
 }
 
 func (tb *TokenBucket) Take(no int) bool {
+
+	if tb.tokens-no > 0 {
+		tb.tokens -= no
+		return true
+	}
 	tb.refill()
 	if tb.tokens-no > 0 {
 		tb.tokens -= no
@@ -101,5 +114,4 @@ func (tb *TokenBucket) PoliceBucket(qp *QPkt) conf.PoliceAction {
 	}
 
 	return qp.Act.action
-
 }
