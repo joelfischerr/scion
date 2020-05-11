@@ -4,6 +4,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "classRule_test.go",
+        "policer_test.go",
         "queue_test.go",
     ],
     data = glob(["testdata/**"]),
