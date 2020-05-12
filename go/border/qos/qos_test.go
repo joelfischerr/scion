@@ -59,23 +59,6 @@ func genRouterPacket(sourceIA string, destinationIA string, L4Type, intf int) *r
 	return rp
 }
 
-func bBenchmarkQueueSinglePacket(b *testing.B) {
-	root := log15.Root()
-	file, err := ioutil.TempFile("", "benchmark-log")
-	require.NoError(b, err)
-	root.SetHandler(log15.Must.FileHandler(file.Name(), log15.LogfmtFormat()))
-
-	extConfig, err := conf.LoadConfig("testdata/sample-config.yaml")
-	require.NoError(b, err)
-	qosConfig, _ := InitQos(extConfig, forwardPacketByDrop)
-	singlePkt := genRouterPacket("1-ff00:0:110", "1-ff00:0:111", 1, 1)
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		qosConfig.QueuePacket(singlePkt)
-	}
-}
-
 // BenchmarkQueueSinglePacket measures the performance of the queue. Run with
 // go test -v -run=^$ -bench=BenchmarkQueueSinglePacket ./go/border/qos/ \
 //    -benchtime=20s -cpuprofile=newprofile.pprof
