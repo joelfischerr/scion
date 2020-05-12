@@ -16,13 +16,11 @@ package queues_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/inconshreveable/log15"
 	"github.com/scionproto/scion/go/border/qos"
 	"github.com/scionproto/scion/go/border/qos/conf"
 	"github.com/scionproto/scion/go/border/qos/queues"

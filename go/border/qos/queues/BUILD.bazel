@@ -14,7 +14,6 @@ go_test(
         "//go/lib/l4:go_default_library",
         "//go/lib/log:go_default_library",
         "//go/lib/spkt:go_default_library",
-        "@com_github_inconshreveable_log15//:go_default_library",
     ],
 )
 
