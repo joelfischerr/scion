@@ -7,12 +7,25 @@ import (
 )
 
 // CachelessClassRule implements ClassRuleInterface
-type CachelessClassRule struct{}
+type CachelessClassRule struct {
+	maskMatched, maskSad, maskDas, maskLf, maskIntf []bool
+	extensions                                      []common.ExtnType
+}
 
 var _ ClassRuleInterface = (*CachelessClassRule)(nil)
 
+func (rc *CachelessClassRule) Init(noRules int) {
+	rc.extensions = make([]common.ExtnType, 255)
+
+	rc.maskMatched = make([]bool, noRules)
+	rc.maskSad = make([]bool, noRules)
+	rc.maskDas = make([]bool, noRules)
+	rc.maskLf = make([]bool, noRules)
+	rc.maskIntf = make([]bool, noRules)
+}
+
 // GetRuleForPacket returns the rule for rp
-func (*CachelessClassRule) GetRuleForPacket(
+func (rc *CachelessClassRule) GetRuleForPacket(
 	config *InternalRouterConfig, rp *rpkt.RtrPkt) *InternalClassRule {
 
 	var returnRule *InternalClassRule
@@ -27,9 +40,7 @@ func (*CachelessClassRule) GetRuleForPacket(
 	var interfaceIncomingRules []*InternalClassRule
 	var matched []*InternalClassRule
 	var l4OnlyRules []*InternalClassRule
-	var maskMatched, maskSad, maskDas, maskLf, maskIntf []bool
 	var srcAddr, dstAddr addr.IA
-	var extensions []common.ExtnType
 	var l4t common.L4ProtocolType
 	var intf uint64
 
@@ -45,11 +56,11 @@ func (*CachelessClassRule) GetRuleForPacket(
 	e2eext := rp.E2EExt
 	for k := 0; k < len(hbhext); k++ {
 		ext, _ := hbhext[k].GetExtn()
-		extensions = append(extensions, ext.Type())
+		rc.extensions = append(rc.extensions, ext.Type())
 	}
 	for k := 0; k < len(e2eext); k++ {
 		ext, _ := e2eext[k].GetExtn()
-		extensions = append(extensions, ext.Type())
+		rc.extensions = append(rc.extensions, ext.Type())
 	}
 
 	returnRule = emptyRule
@@ -80,24 +91,18 @@ func (*CachelessClassRule) GetRuleForPacket(
 
 	matched = intersectListsRules(sources, destinations)
 
-	maskMatched = make([]bool, len(matched))
-	maskSad = make([]bool, len(sourceAnyDestinationMatches))
-	maskDas = make([]bool, len(destinationAnySourceRules))
-	maskLf = make([]bool, len(l4OnlyRules))
-	maskIntf = make([]bool, len(l4OnlyRules))
-
-	matchL4Type(maskMatched, &matched, l4t, extensions)
-	matchL4Type(maskSad, &sourceAnyDestinationMatches, l4t, extensions)
-	matchL4Type(maskDas, &destinationAnySourceRules, l4t, extensions)
-	matchL4Type(maskLf, &l4OnlyRules, l4t, extensions)
-	matchL4Type(maskIntf, &interfaceIncomingRules, l4t, extensions)
+	matchL4Type(rc.maskMatched, &matched, l4t, rc.extensions)
+	matchL4Type(rc.maskSad, &sourceAnyDestinationMatches, l4t, rc.extensions)
+	matchL4Type(rc.maskDas, &destinationAnySourceRules, l4t, rc.extensions)
+	matchL4Type(rc.maskLf, &l4OnlyRules, l4t, rc.extensions)
+	matchL4Type(rc.maskIntf, &interfaceIncomingRules, l4t, rc.extensions)
 
 	max := -1
-	max, returnRule = getRuleWithPrevMax(returnRule, maskMatched, matched, max)
-	max, returnRule = getRuleWithPrevMax(returnRule, maskSad, sourceAnyDestinationMatches, max)
-	max, returnRule = getRuleWithPrevMax(returnRule, maskDas, destinationAnySourceRules, max)
-	max, returnRule = getRuleWithPrevMax(returnRule, maskIntf, interfaceIncomingRules, max)
-	_, returnRule = getRuleWithPrevMax(returnRule, maskLf, l4OnlyRules, max)
+	max, returnRule = getRuleWithPrevMax(returnRule, rc.maskMatched, matched, max)
+	max, returnRule = getRuleWithPrevMax(returnRule, rc.maskSad, sourceAnyDestinationMatches, max)
+	max, returnRule = getRuleWithPrevMax(returnRule, rc.maskDas, destinationAnySourceRules, max)
+	max, returnRule = getRuleWithPrevMax(returnRule, rc.maskIntf, interfaceIncomingRules, max)
+	_, returnRule = getRuleWithPrevMax(returnRule, rc.maskLf, l4OnlyRules, max)
 
 	return returnRule
 }
