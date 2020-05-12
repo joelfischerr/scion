@@ -303,21 +303,6 @@ func getMatchRuleTypeFromRule(
 		matchModeField)
 }
 
-var returnRule *InternalClassRule
-var exactAndRangeSourceMatches []*InternalClassRule
-var exactAndRangeDestinationMatches []*InternalClassRule
-var sourceAnyDestinationMatches []*InternalClassRule
-var destinationAnySourceRules []*InternalClassRule
-var asOnlySourceRules []*InternalClassRule
-var asOnlyDestinationRules []*InternalClassRule
-var isdOnlySourceRules, isdOnlyDestinationRules, interfaceIncomingRules, interfaceOutgoingRules, matched, l4OnlyRules []*InternalClassRule
-var maskMatched, maskSad, maskDas, maskLf, maskIntf []bool
-var srcAddr, dstAddr addr.IA
-var extensions []common.ExtnType
-var l4t common.L4ProtocolType
-var intf uint64
-var ext common.Extension
-
 var emptyRule = &InternalClassRule{
 	Name:        "default",
 	Priority:    0,
@@ -330,6 +315,23 @@ func (*RegularClassRule) GetRuleForPacket(
 
 	var sources [3][]*InternalClassRule
 	var destinations [3][]*InternalClassRule
+	var returnRule *InternalClassRule
+	var exactAndRangeSourceMatches []*InternalClassRule
+	var exactAndRangeDestinationMatches []*InternalClassRule
+	var sourceAnyDestinationMatches []*InternalClassRule
+	var destinationAnySourceRules []*InternalClassRule
+	var asOnlySourceRules []*InternalClassRule
+	var asOnlyDestinationRules []*InternalClassRule
+	var isdOnlySourceRules []*InternalClassRule
+	var isdOnlyDestinationRules []*InternalClassRule
+	var interfaceIncomingRules []*InternalClassRule
+	var matched []*InternalClassRule
+	var l4OnlyRules []*InternalClassRule
+	var maskMatched, maskSad, maskDas, maskLf, maskIntf []bool
+	var srcAddr, dstAddr addr.IA
+	var extensions []common.ExtnType
+	var l4t common.L4ProtocolType
+	var intf uint64
 
 	srcAddr, _ = rp.SrcIA()
 	dstAddr, _ = rp.DstIA()

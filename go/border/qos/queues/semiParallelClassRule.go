@@ -24,10 +24,16 @@ func (pcr *SemiParallelClassRule) GetRuleForPacket(
 
 	done := make(chan bool, 3)
 
-	var srcAddr addr.IA
-	var dstAddr addr.IA
+	var returnRule *InternalClassRule
+	var interfaceIncomingRules []*InternalClassRule
+	var matched []*InternalClassRule
+	var l4OnlyRules []*InternalClassRule
+	var maskMatched, maskSad, maskDas, maskLf, maskIntf []bool
+	var srcAddr, dstAddr addr.IA
 	var extensions []common.ExtnType
 	var l4t common.L4ProtocolType
+	var intf uint64
+
 	intf = uint64(rp.Ingress.IfID)
 
 	go func(dun chan bool) {
@@ -199,9 +205,7 @@ func (pcr *SemiParallelClassRule) getMatchISDFromMap(
 	resultSpot int,
 	done chan bool) {
 
-	returnRule = emptyRule
-	exactAndRangeSourceMatches = (*m)[address]
-	result[resultSpot] = exactAndRangeSourceMatches
+	result[resultSpot] = (*m)[address]
 	done <- true
 }
 
@@ -213,9 +217,7 @@ func (pcr *SemiParallelClassRule) getMatchASFromMap(
 	resultSpot int,
 	done chan bool) {
 
-	returnRule = emptyRule
-	exactAndRangeSourceMatches = (*m)[address]
-	result[resultSpot] = exactAndRangeSourceMatches
+	result[resultSpot] = (*m)[address]
 	done <- true
 }
 
@@ -227,8 +229,6 @@ func (pcr *SemiParallelClassRule) getMatchFromMap(
 	resultSpot int,
 	done chan bool) {
 
-	returnRule = emptyRule
-	exactAndRangeSourceMatches = (*m)[address]
-	result[resultSpot] = exactAndRangeSourceMatches
+	result[resultSpot] = (*m)[address]
 	done <- true
 }

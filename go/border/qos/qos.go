@@ -156,6 +156,7 @@ func initWorkers(qConfig *Configuration) error {
 // it is thread safe (necessary bc. of multiple sockets in the border router).
 func (qosConfig *Configuration) QueuePacket(rp *rpkt.RtrPkt) {
 	rc := queues.RegularClassRule{}
+	// rc := queues.CachelessClassRule{}
 	config := qosConfig.GetConfig()
 
 	rule := rc.GetRuleForPacket(config, rp)
