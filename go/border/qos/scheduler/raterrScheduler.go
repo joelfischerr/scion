@@ -9,7 +9,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-// This is also a deficit round robin dequeuer. But instead of the priority
+// This is also a weighted round robin dequeuer. But instead of the priority
 // field it uses the min-bandwidth field for the minimum number of packets to dequeue.
 // If there are fewer than the minimal value of packets to dequeue, the remaining min-bandwidth
 // will be put onto a surplus counter and another queue might use more than its min-bandwidth

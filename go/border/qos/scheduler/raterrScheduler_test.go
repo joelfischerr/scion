@@ -1,10 +1,7 @@
 package scheduler
 
 import (
-	"log"
 	"math"
-	"os"
-	"runtime/pprof"
 	"sync"
 	"testing"
 
@@ -13,13 +10,6 @@ import (
 )
 
 func TestEnAndDequeuePackets(T *testing.T) {
-
-	f, err := os.Create("cpu.out")
-	if err != nil {
-		log.Fatal(err)
-	}
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
 
 	qp := queues.QPkt{Rp: nil, QueueNo: 0}
 
@@ -64,8 +54,6 @@ var testQueue = make(chan int, 1000)
 var blockForwarder = make(chan int, 1)
 
 func forwardPacketByDrop(rp *rpkt.RtrPkt) {
-	// testQueue <- 0
-	// rp.Release()
 }
 
 func forwardPacketByDropAndWait(rp *rpkt.RtrPkt) {
