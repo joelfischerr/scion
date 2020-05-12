@@ -38,6 +38,7 @@ type Configuration struct {
 	worker         workerConfiguration
 	workerChannels [](chan *queues.QPkt)
 	Forwarder      func(rp *rpkt.RtrPkt)
+	Classifier     queues.ClassRuleInterface
 
 	droppedPackets int
 }
@@ -127,6 +128,9 @@ func InitClassification(qConfig *Configuration) error {
 	qConfig.config.Rules = *queues.RulesToMap(qConfig.config.Rules.RulesList)
 	qConfig.config.Rules.CrCache.Init(256)
 
+	qConfig.Classifier = &queues.CachelessClassRule{}
+	qConfig.Classifier.Init(len(qConfig.config.Rules.RulesList))
+
 	return nil
 }
 
@@ -159,9 +163,8 @@ func initWorkers(qConfig *Configuration) error {
 // QueuePacket is called from router.go and is the first step in the qos subsystem
 // it is thread safe (necessary bc. of multiple sockets in the border router).
 func (qosConfig *Configuration) QueuePacket(rp *rpkt.RtrPkt) {
-
-	rc := queues.CachelessClassRule{}
 	config := qosConfig.GetConfig()
+	rc := qosConfig.Classifier
 
 	rule := rc.GetRuleForPacket(config, rp)
 

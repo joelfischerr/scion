@@ -15,6 +15,7 @@
 package queues
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -27,6 +28,7 @@ import (
 // ClassRuleInterface allows to get the rule matchting rp from implementing structs
 type ClassRuleInterface interface {
 	GetRuleForPacket(config *InternalRouterConfig, rp *rpkt.RtrPkt) *InternalClassRule
+	Init(noRules int)
 }
 
 // ProtocolMatchType is combination of l4protocol and extension type
@@ -79,7 +81,10 @@ const (
 )
 
 // RegularClassRule implements ClassRuleInterface
-type RegularClassRule struct{}
+type RegularClassRule struct {
+	maskMatched, maskSad, maskDas, maskLf, maskIntf []bool
+	extensions                                      []common.ExtnType
+}
 
 var _ ClassRuleInterface = (*RegularClassRule)(nil)
 
@@ -241,16 +246,7 @@ func RulesToMap(crs []InternalClassRule) *MapRules {
 		InterfaceIncomingRules:    interfaceIncomingRules,
 	}
 
-	extensions = make([]common.ExtnType, 255)
-
-	maskMatched = make([]bool, len(crs))
-	maskSad = make([]bool, len(crs))
-	maskDas = make([]bool, len(crs))
-	maskLf = make([]bool, len(crs))
-	maskIntf = make([]bool, len(crs))
-
 	return &mp
-
 }
 
 func getMatchRuleTypeFromRule(
@@ -317,8 +313,18 @@ var emptyRule = &InternalClassRule{
 	QueueNumber: 0,
 }
 
+func (rc *RegularClassRule) Init(noRules int) {
+	rc.extensions = make([]common.ExtnType, 255)
+
+	rc.maskMatched = make([]bool, noRules)
+	rc.maskSad = make([]bool, noRules)
+	rc.maskDas = make([]bool, noRules)
+	rc.maskLf = make([]bool, noRules)
+	rc.maskIntf = make([]bool, noRules)
+}
+
 // GetRuleForPacket returns the rule for rp
-func (*RegularClassRule) GetRuleForPacket(
+func (rc *RegularClassRule) GetRuleForPacket(
 	config *InternalRouterConfig, rp *rpkt.RtrPkt) *InternalClassRule {
 
 	var sources [3][]*InternalClassRule
@@ -335,9 +341,7 @@ func (*RegularClassRule) GetRuleForPacket(
 	var interfaceIncomingRules []*InternalClassRule
 	var matched []*InternalClassRule
 	var l4OnlyRules []*InternalClassRule
-	var maskMatched, maskSad, maskDas, maskLf, maskIntf []bool
 	var srcAddr, dstAddr addr.IA
-	var extensions []common.ExtnType
 	var l4t common.L4ProtocolType
 	var intf uint64
 
@@ -350,11 +354,11 @@ func (*RegularClassRule) GetRuleForPacket(
 	e2eext := rp.E2EExt
 	for k := 0; k < len(hbhext); k++ {
 		ext, _ := hbhext[k].GetExtn()
-		extensions = append(extensions, ext.Type())
+		rc.extensions = append(rc.extensions, ext.Type())
 	}
 	for k := 0; k < len(e2eext); k++ {
 		ext, _ := e2eext[k].GetExtn()
-		extensions = append(extensions, ext.Type())
+		rc.extensions = append(rc.extensions, ext.Type())
 	}
 
 	entry := cacheEntry{srcAddress: srcAddr, dstAddress: dstAddr, intf: intf, l4type: l4t}
@@ -362,7 +366,7 @@ func (*RegularClassRule) GetRuleForPacket(
 	returnRule = config.Rules.CrCache.Get(entry)
 
 	if returnRule != nil {
-		if matchRuleL4ExtensionType(returnRule, extensions) {
+		if matchRuleL4ExtensionType(returnRule, rc.extensions) {
 			return returnRule
 		}
 	}
@@ -395,18 +399,18 @@ func (*RegularClassRule) GetRuleForPacket(
 
 	matched = intersectListsRules(sources, destinations)
 
-	matchL4Type(maskMatched, &matched, l4t, extensions)
-	matchL4Type(maskSad, &sourceAnyDestinationMatches, l4t, extensions)
-	matchL4Type(maskDas, &destinationAnySourceRules, l4t, extensions)
-	matchL4Type(maskLf, &l4OnlyRules, l4t, extensions)
-	matchL4Type(maskIntf, &interfaceIncomingRules, l4t, extensions)
+	matchL4Type(rc.maskMatched, &matched, l4t, rc.extensions)
+	matchL4Type(rc.maskSad, &sourceAnyDestinationMatches, l4t, rc.extensions)
+	matchL4Type(rc.maskDas, &destinationAnySourceRules, l4t, rc.extensions)
+	matchL4Type(rc.maskLf, &l4OnlyRules, l4t, rc.extensions)
+	matchL4Type(rc.maskIntf, &interfaceIncomingRules, l4t, rc.extensions)
 
 	max := -1
-	max, returnRule = getRuleWithPrevMax(returnRule, maskMatched, matched, max)
-	max, returnRule = getRuleWithPrevMax(returnRule, maskSad, sourceAnyDestinationMatches, max)
-	max, returnRule = getRuleWithPrevMax(returnRule, maskDas, destinationAnySourceRules, max)
-	max, returnRule = getRuleWithPrevMax(returnRule, maskIntf, interfaceIncomingRules, max)
-	_, returnRule = getRuleWithPrevMax(returnRule, maskLf, l4OnlyRules, max)
+	max, returnRule = getRuleWithPrevMax(returnRule, rc.maskMatched, matched, max)
+	max, returnRule = getRuleWithPrevMax(returnRule, rc.maskSad, sourceAnyDestinationMatches, max)
+	max, returnRule = getRuleWithPrevMax(returnRule, rc.maskDas, destinationAnySourceRules, max)
+	max, returnRule = getRuleWithPrevMax(returnRule, rc.maskIntf, interfaceIncomingRules, max)
+	_, returnRule = getRuleWithPrevMax(returnRule, rc.maskLf, l4OnlyRules, max)
 
 	config.Rules.CrCache.Put(entry, returnRule)
 
@@ -475,6 +479,7 @@ func getRuleWithPrevMax(
 
 	for i := 0; i < len(list); i++ {
 		if mask[i] {
+			fmt.Println("The list is", list)
 			if list[i].Priority > prevMax {
 				returnRule = list[i]
 				prevMax = list[i].Priority
@@ -486,11 +491,10 @@ func getRuleWithPrevMax(
 	return prevMax, returnRule
 }
 
-// intersectListsRules intersects two lists of lists of rules and
-// returns a list with all rules that were present somewhere in both a and b as a single list
 func intersectListsRules(
 	a [3][]*InternalClassRule,
 	b [3][]*InternalClassRule) []*InternalClassRule {
+	var matches = make([]*InternalClassRule, 10)
 	for i := 0; i < len(matches); i++ {
 		matches[i] = nil
 	}
