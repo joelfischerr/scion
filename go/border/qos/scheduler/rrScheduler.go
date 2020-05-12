@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/border/rpkt"
 )
 
+// RoundRobinScheduler is a standard round robin dequeue ignoring things like priority
 type RoundRobinScheduler struct {
 	totalLength   int
 	messages      chan bool
@@ -29,8 +30,6 @@ type RoundRobinScheduler struct {
 }
 
 var _ SchedulerInterface = (*RoundRobinScheduler)(nil)
-
-// This is a standard round robin dequeue ignoring things like priority
 
 func (sched *RoundRobinScheduler) Init(routerConfig *queues.InternalRouterConfig) {
 	sched.totalLength = len(routerConfig.Queues)

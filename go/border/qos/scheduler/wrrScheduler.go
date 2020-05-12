@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-// This is a deficit round robin dequeuer.
+// This is a weighted round robin dequeuer.
 // Queues with higher priority will have more packets dequeued at the same time.
 
 type WeightedRoundRobinScheduler struct {
@@ -33,7 +33,7 @@ type WeightedRoundRobinScheduler struct {
 	sleepDuration    int
 	tb               queues.TokenBucket
 	logger           ScheduleLogger
-	reportedTokens          int
+	reportedTokens   int
 }
 
 var _ SchedulerInterface = (*WeightedRoundRobinScheduler)(nil)
@@ -142,13 +142,13 @@ func (sched *WeightedRoundRobinScheduler) showLog(routerConfig queues.InternalRo
 			sched.logger.attempted, "deqTotal",
 			sched.logger.total, "currQueueLen", queLen)
 		log.Debug("SPEED",
-            "Mbps", float64(sched.reportedTokens)/1000000.0*8.0,
-            "MBps", float64(sched.reportedTokens)/1000000.0)
+			"Mbps", float64(sched.reportedTokens)/1000000.0*8.0,
+			"MBps", float64(sched.reportedTokens)/1000000.0)
+		sched.reportedTokens = 0
 		log.Debug("Bucket",
-            "tokens Mbps", float64(sched.tb.GetAvailable())/1000000.0*8.0, "MBps",
-            float64(sched.tb.GetAvailable())/1000000.0,
-            "allwed MBps", float64(sched.tb.GetMaxBandwidth())/1000000.0)
-        sched.reportedTokens = 0
+			"tokens Mbps", float64(sched.tb.GetAvailable())/1000000.0*8.0,
+			"MBps", float64(sched.tb.GetAvailable())/1000000.0,
+			"allowed MBps", float64(sched.tb.GetMaxBandwidth())/1000000.0)
 		for i := 0; i < len(sched.logger.lastRound); i++ {
 			sched.logger.lastRound[i] = 0
 		}

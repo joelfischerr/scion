@@ -21,6 +21,8 @@ import (
 	"github.com/scionproto/scion/go/border/qos/conf"
 )
 
+// CustomPacketQueue is a queue for Qpkts based on a ringbuffer.
+// It was only used during development. For documentation please see channelQueue.go or bufQueue.go
 type CustomPacketQueue struct {
 	pktQue PacketQueue
 	mutex  *sync.Mutex

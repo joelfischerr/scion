@@ -13,6 +13,7 @@ var sources [3][]*InternalClassRule
 var destinations [3][]*InternalClassRule
 
 // GetRuleForPacket returns the rule for rp
+// It works just like GetRuleForPacket of classRule.go but does not use the cache
 func (*CachelessClassRule) GetRuleForPacket(
 	config *InternalRouterConfig, rp *rpkt.RtrPkt) *InternalClassRule {
 
