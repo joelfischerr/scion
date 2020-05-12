@@ -2,6 +2,8 @@ package queues
 
 import (
 	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // CachelessClassRule implements ClassRuleInterface
@@ -17,6 +19,24 @@ var destinations [3][]*InternalClassRule
 func (*CachelessClassRule) GetRuleForPacket(
 	config *InternalRouterConfig, rp *rpkt.RtrPkt) *InternalClassRule {
 
+	var returnRule *InternalClassRule
+	var exactAndRangeSourceMatches []*InternalClassRule
+	var exactAndRangeDestinationMatches []*InternalClassRule
+	var sourceAnyDestinationMatches []*InternalClassRule
+	var destinationAnySourceRules []*InternalClassRule
+	var asOnlySourceRules []*InternalClassRule
+	var asOnlyDestinationRules []*InternalClassRule
+	var isdOnlySourceRules []*InternalClassRule
+	var isdOnlyDestinationRules []*InternalClassRule
+	var interfaceIncomingRules []*InternalClassRule
+	var matched []*InternalClassRule
+	var l4OnlyRules []*InternalClassRule
+	var maskMatched, maskSad, maskDas, maskLf, maskIntf []bool
+	var srcAddr, dstAddr addr.IA
+	var extensions []common.ExtnType
+	var l4t common.L4ProtocolType
+	var intf uint64
+
 	var sources [3][]*InternalClassRule
 	var destinations [3][]*InternalClassRule
 
@@ -28,11 +48,11 @@ func (*CachelessClassRule) GetRuleForPacket(
 	hbhext := rp.HBHExt
 	e2eext := rp.E2EExt
 	for k := 0; k < len(hbhext); k++ {
-		ext, _ = hbhext[k].GetExtn()
+		ext, _ := hbhext[k].GetExtn()
 		extensions = append(extensions, ext.Type())
 	}
 	for k := 0; k < len(e2eext); k++ {
-		ext, _ = e2eext[k].GetExtn()
+		ext, _ := e2eext[k].GetExtn()
 		extensions = append(extensions, ext.Type())
 	}
 
