@@ -109,7 +109,6 @@ func InitQos(extConf conf.ExternalConfig, forwarder func(rp *rpkt.RtrPkt)) (
 		log.Error("InitQos: Initialising the workers has failed",
 			"error", err)
 	}
-
 	return qConfig, err
 }
 
@@ -137,10 +136,10 @@ func InitClassification(qConfig *Configuration) error {
 func initScheduler(qConfig *Configuration, forwarder func(rp *rpkt.RtrPkt)) error {
 	qConfig.notifications = make(chan *queues.NPkt, maxNotificationCount)
 	qConfig.Forwarder = forwarder
-	// qConfig.schedul = &scheduler.RoundRobinScheduler{}
+
 	qConfig.schedul = &scheduler.WeightedRoundRobinScheduler{}
-	// qConfig.schedul = &scheduler.RateRoundRobinScheduler{}
 	qConfig.schedul.Init(&qConfig.config)
+
 	go qConfig.schedul.Dequeuer(&qConfig.config, qConfig.Forwarder)
 
 	return nil
