@@ -15,6 +15,7 @@
 package queues
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -399,12 +400,6 @@ func (rc *RegularClassRule) GetRuleForPacket(
 
 	matched = intersectListsRules(sources, destinations)
 
-	// maskMatched = make([]bool, len(matched))
-	// maskSad = make([]bool, len(sourceAnyDestinationMatches))
-	// maskDas = make([]bool, len(destinationAnySourceRules))
-	// maskLf = make([]bool, len(l4OnlyRules))
-	// maskIntf = make([]bool, len(l4OnlyRules))
-
 	matchL4Type(rc.maskMatched, &matched, l4t, rc.extensions)
 	matchL4Type(rc.maskSad, &sourceAnyDestinationMatches, l4t, rc.extensions)
 	matchL4Type(rc.maskDas, &destinationAnySourceRules, l4t, rc.extensions)
@@ -445,6 +440,11 @@ func matchL4Type(
 	l4t common.L4ProtocolType,
 	extensions []common.ExtnType) {
 
+	for i := 0; i < len(mask); i++ {
+		mask[i] = false
+
+	}
+
 	for i := 0; i < len(*list); i++ {
 		if (*list)[i] == nil {
 			break
@@ -473,6 +473,7 @@ func getRuleWithPrevMax(
 
 	for i := 0; i < len(list); i++ {
 		if mask[i] {
+			fmt.Println("The list is", list)
 			if list[i].Priority > prevMax {
 				returnRule = list[i]
 				prevMax = list[i].Priority

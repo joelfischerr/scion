@@ -66,6 +66,7 @@ func BenchmarkRuleMatchModes(b *testing.B) {
 	qosConfig, _ := qos.InitQos(extConf, forwardPacketByDrop)
 
 	rc := queues.RegularClassRule{}
+	rc.Init(len(extConf.ExternalRules))
 
 	tables := []struct {
 		srcIA       string
@@ -127,6 +128,7 @@ func BenchmarkSingleMatchSequential(b *testing.B) {
 	qosConfig := qConfig
 
 	rc := queues.RegularClassRule{}
+	rc.Init(len(extConf.ExternalRules))
 
 	pkt := genRouterPacket("11-ff00:0:299", "22-ff00:0:188", 1, 1)
 
@@ -173,6 +175,7 @@ func BenchmarkCachelessClassRule(b *testing.B) {
 	}
 	qosConfig, _ := qos.InitQos(extConf, forwardPacketByDrop)
 	classifier := queues.CachelessClassRule{}
+	classifier.Init(len(extConf.ExternalRules))
 
 	pkt := genRouterPacket("11-ff00:0:299", "22-ff00:0:188", 1, 1)
 
@@ -194,6 +197,7 @@ func BenchmarkStandardClassRule(b *testing.B) {
 	}
 	qosConfig, _ := qos.InitQos(extConf, forwardPacketByDrop)
 	classifier := queues.RegularClassRule{}
+	classifier.Init(len(extConf.ExternalRules))
 
 	pkt := genRouterPacket("11-ff00:0:299", "22-ff00:0:188", 1, 1)
 
@@ -221,8 +225,8 @@ func BenchmarkClassifier(b *testing.B) {
 	}{
 		{"Regular Class Rule", &queues.RegularClassRule{}},
 		{"Regular Class Rule w/o cache", &queues.CachelessClassRule{}},
-		{"Semi Parallel Class Rule", &queues.SemiParallelClassRule{}},
-		{"Parallel Class Rule", &queues.ParallelClassRule{}},
+		// {"Semi Parallel Class Rule", &queues.SemiParallelClassRule{}},
+		// {"Parallel Class Rule", &queues.ParallelClassRule{}},
 	}
 
 	pkt := genRouterPacket("11-ff00:0:299", "22-ff00:0:188", 1, 1)
@@ -254,11 +258,16 @@ func TestRuleMatchModes(t *testing.T) {
 	classifiers := []queues.ClassRuleInterface{
 		&queues.RegularClassRule{},
 		&queues.CachelessClassRule{},
-		&queues.ParallelClassRule{},
-		&queues.SemiParallelClassRule{}}
+		// &queues.ParallelClassRule{},
+		// &queues.SemiParallelClassRule{},
+	}
 
 	// classifiers := [1]queues.ClassRuleInterface{
 	// 	&queues.RegularClassRule{}}
+
+	for i := 0; i < len(classifiers); i++ {
+		classifiers[i].Init(len(extConf.ExternalRules))
+	}
 
 	tables := []struct {
 		srcIA       string
@@ -342,6 +351,7 @@ func TestRuleMatchModesForDemo(t *testing.T) {
 	fmt.Println("---------------------------------")
 
 	for _, classifier := range classifiers {
+		classifier.Init(len(extConf.ExternalRules))
 		for k, tab := range tables {
 			pkt := genRouterPacket(tab.srcIA, tab.dstIA, 6, 0)
 
