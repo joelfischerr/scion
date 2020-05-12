@@ -79,6 +79,7 @@ func bBenchmarkQueueSinglePacket(b *testing.B) {
 // BenchmarkQueueSinglePacket measures the performance of the queue. Run with
 // go test -v -run=^$ -bench=BenchmarkQueueSinglePacket ./go/border/qos/ \
 //    -benchtime=20s -cpuprofile=newprofile.pprof
+// for a CPU profile
 func BenchmarkQueueSinglePacket(t *testing.B) {
 	root := log15.Root()
 	file, err := ioutil.TempFile("", "benchmark-log")
@@ -91,9 +92,11 @@ func BenchmarkQueueSinglePacket(t *testing.B) {
 	arr := getPackets(1)
 
 	t.ResetTimer()
+	var i int
+	const l = 20
 	for n := 0; n < t.N; n++ {
-		for _, pkt := range arr {
-			qosConfig.QueuePacket(pkt)
+		for i = 0; i < l; i++ {
+			qosConfig.QueuePacket(arr[0])
 		}
 	}
 }

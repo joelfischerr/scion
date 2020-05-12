@@ -88,6 +88,4 @@ func TestSimtable(t *testing.T) {
 	fmt.Println("Queue 0", simTable[0].totalDequeued,
 		"Queue 1", simTable[1].totalDequeued,
 		"Queue 2", simTable[2].totalDequeued)
-
-	// t.Errorf("Show log")
 }

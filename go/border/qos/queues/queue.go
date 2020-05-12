@@ -22,17 +22,20 @@ import (
 	"github.com/scionproto/scion/go/border/rpkt"
 )
 
+// QPkt is the representation of a router packet in the qos subsystem
 type QPkt struct {
 	QueueNo int
 	Act     Action
 	Rp      *rpkt.RtrPkt
 }
 
+// NPkt is the representation of a router packet used when sending notifications
 type NPkt struct {
 	Rule *InternalClassRule
 	Qpkt *QPkt
 }
 
+// Violation is the reason for why a certain Action was taken
 type Violation int
 
 const (
@@ -41,7 +44,6 @@ const (
 	queueFull
 )
 
-// Action is
 type Action struct {
 	rule   *InternalClassRule
 	reason Violation

@@ -93,16 +93,20 @@ func InitQos(extConf conf.ExternalConfig, forwarder func(rp *rpkt.RtrPkt)) (
 	qConfig := Configuration{}
 	var err error
 	if err = ConvExternalToInternalConfig(&qConfig, extConf); err != nil {
-		log.Error("InitQos: Initialising the classification data structures has failed", "error", err)
+		log.Error("InitQos: Initialising the classification data structures has failed",
+			"error", err)
 	}
 	if err = InitClassification(&qConfig); err != nil {
-		log.Error("InitQos: Initialising the classification data structures has failed", "error", err)
+		log.Error("InitQos: Initialising the classification data structures has failed",
+			"error", err)
 	}
 	if err = initScheduler(&qConfig, forwarder); err != nil {
-		log.Error("InitQos: Initialising the scheduler has failed", "error", err)
+		log.Error("InitQos: Initialising the scheduler has failed",
+			"error", err)
 	}
 	if err = initWorkers(&qConfig); err != nil {
-		log.Error("InitQos: Initialising the workers has failed", "error", err)
+		log.Error("InitQos: Initialising the workers has failed",
+			"error", err)
 	}
 
 	return qConfig, err
@@ -155,7 +159,8 @@ func initWorkers(qConfig *Configuration) error {
 // QueuePacket is called from router.go and is the first step in the qos subsystem
 // it is thread safe (necessary bc. of multiple sockets in the border router).
 func (qosConfig *Configuration) QueuePacket(rp *rpkt.RtrPkt) {
-	rc := queues.RegularClassRule{}
+
+	rc := queues.CachelessClassRule{}
 	config := qosConfig.GetConfig()
 
 	rule := rc.GetRuleForPacket(config, rp)
@@ -211,7 +216,7 @@ func (qosConfig *Configuration) SendNotification(qp *queues.QPkt) {
 
 func (qosConfig *Configuration) dropPacket(qp *queues.QPkt) {
 	defer qp.Rp.Release()
-	qosConfig.SendNotification(qp)
+
 	qosConfig.droppedPackets++
 	log.Info("Dropping packet", "qosConfig.droppedPackets", qosConfig.droppedPackets)
 	var queLen = make([]int, len(*qosConfig.GetQueues()))

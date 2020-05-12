@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-// This is a deficit round robin dequeuer.
+// This is a weighted round robin dequeuer.
 // Queues with higher priority will have more packets dequeued at the same time.
 
 type WeightedRoundRobinScheduler struct {
@@ -33,6 +33,7 @@ type WeightedRoundRobinScheduler struct {
 	sleepDuration    int
 	tb               queues.TokenBucket
 	logger           ScheduleLogger
+	reportedTokens   int
 }
 
 var _ SchedulerInterface = (*WeightedRoundRobinScheduler)(nil)
@@ -67,7 +68,9 @@ func (sched *WeightedRoundRobinScheduler) Dequeue(
 
 	var qp *queues.QPkt
 
-	pktToDequeue := getNoPacketsToDequeue(sched.totalQueueLength, queue.GetPriority(), sched.quantumSum)
+	pktToDequeue := getNoPacketsToDequeue(sched.totalQueueLength,
+		queue.GetPriority(),
+		sched.quantumSum)
 
 	sched.logger.attempted[queueNo] += pktToDequeue
 
@@ -81,7 +84,7 @@ func (sched *WeightedRoundRobinScheduler) Dequeue(
 
 		pktLen = len(qp.Rp.Raw)
 
-		amount0 += pktLen
+		sched.reportedTokens += pktLen
 
 		for !(sched.tb.Take(pktLen)) {
 			time.Sleep(30 * time.Millisecond)
@@ -118,8 +121,6 @@ func (sched *WeightedRoundRobinScheduler) Dequeuer(routerConfig *queues.Internal
 	}
 }
 
-var amount0 int
-
 func (sched *WeightedRoundRobinScheduler) UpdateIncoming(queueNo int) {
 	sched.logger.incoming[queueNo]++
 }
@@ -127,7 +128,7 @@ func (sched *WeightedRoundRobinScheduler) UpdateIncoming(queueNo int) {
 func (sched *WeightedRoundRobinScheduler) showLog(routerConfig queues.InternalRouterConfig) {
 
 	sched.logger.iterations++
-	if time.Now().Sub(sched.logger.t0) > time.Duration(1*time.Second) {
+	if time.Now().Sub(sched.logger.t0) > time.Duration(10*time.Second) {
 
 		var queLen = make([]int, sched.totalLength)
 		for i := 0; i < sched.totalLength; i++ {
@@ -140,9 +141,14 @@ func (sched *WeightedRoundRobinScheduler) showLog(routerConfig queues.InternalRo
 			sched.logger.lastRound, "deqAttempted",
 			sched.logger.attempted, "deqTotal",
 			sched.logger.total, "currQueueLen", queLen)
-		log.Debug("SPEED", "Mbps", float64(amount0)/1000000.0*8.0, "MBps", float64(amount0)/1000000.0)
-		amount0 = 0
-		log.Debug("Bucket", "tokens Mbps", float64(sched.tb.GetAvailable())/1000000.0*8.0, "MBps", float64(sched.tb.GetAvailable())/1000000.0, "allwed MBps", float64(sched.tb.GetMaxBandwidth())/1000000.0)
+		log.Debug("SPEED",
+			"Mbps", float64(sched.reportedTokens)/1000000.0*8.0,
+			"MBps", float64(sched.reportedTokens)/1000000.0)
+		sched.reportedTokens = 0
+		log.Debug("Bucket",
+			"tokens Mbps", float64(sched.tb.GetAvailable())/1000000.0*8.0,
+			"MBps", float64(sched.tb.GetAvailable())/1000000.0,
+			"allowed MBps", float64(sched.tb.GetMaxBandwidth())/1000000.0)
 		for i := 0; i < len(sched.logger.lastRound); i++ {
 			sched.logger.lastRound[i] = 0
 		}
