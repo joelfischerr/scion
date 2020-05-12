@@ -15,7 +15,6 @@
 package queues
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -479,7 +478,6 @@ func getRuleWithPrevMax(
 
 	for i := 0; i < len(list); i++ {
 		if mask[i] {
-			fmt.Println("The list is", list)
 			if list[i].Priority > prevMax {
 				returnRule = list[i]
 				prevMax = list[i].Priority

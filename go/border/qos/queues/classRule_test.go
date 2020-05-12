@@ -59,36 +59,6 @@ func genRouterPacket(sourceIA string, destinationIA string, L4Type, intf int) *r
 	return rp
 }
 
-func BenchmarkClassifier(b *testing.B) {
-
-	extConf, err := conf.LoadConfig("testdata/matchTypeTest-config.yaml")
-	if err != nil {
-		log.Debug("Load config file failed", "error", err)
-		log.Debug("The testdata folder from the parent folder should be available for this test but it isn't when running it with bazel. Just run it without Bazel and it will pass.")
-	}
-	qosConfig, _ := qos.InitQos(extConf, forwardPacketByDrop)
-
-	classifierImplementations := []struct {
-		name       string
-		queueToUse queues.ClassRuleInterface
-	}{
-		{"Regular Class Rule", &queues.RegularClassRule{}},
-		{"Regular Class Rule w/o cache", &queues.CachelessClassRule{}},
-	}
-
-	pkt := genRouterPacket("11-ff00:0:299", "22-ff00:0:188", 1, 1)
-	for _, bench := range classifierImplementations {
-
-		b.Run(bench.name, func(b *testing.B) {
-			for n := 0; n < b.N; n++ {
-				rul := bench.queueToUse.GetRuleForPacket(qosConfig.GetConfig(), pkt)
-				_ = rul
-			}
-		})
-	}
-
-}
-
 func TestRuleMatchModes(t *testing.T) {
 	log.Debug("func TestRuleMatchModes(t *testing.T) {")
 
